@@ -9,15 +9,15 @@ $ErroredItemsFolder=$(join-path "$logsFolder" "errored")
 Write-Host "Hudu Max Docsize: $HUDU_MAX_DOCSIZE"
 $PPBaseURIs = @(
     @{APIBase="us-clover"
-    Location="United States"},
+    name="United States"},
     @{APIBase="ca-clover"
-    Location="Canada"},
+    name="Canada"},
     @{APIBase="uk-clover"
-    Location="United Kingdom"},
+    name="United Kingdom"},
     @{APIBase="us-clover"
-    Location="Germany"},
-    @{APIBase="https://us-clover"
-    Location="Australia"}
+    name="Germany"},
+    @{APIBase="au-clover"
+    name="Australia"}
 )
 foreach ($folder in @($logsFolder, $downloadsFolder, $tmpfolder, $allSitesfolder, $ErroredItemsFolder)) {
     if (!(Test-Path -Path "$folder")) { Set-PrintAndLog -message  "Making dir... $(New-Item "$folder" -ItemType Directory)" -Color DarkCyan }

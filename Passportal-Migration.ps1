@@ -3,6 +3,8 @@ $workdir = $PSScriptRoot
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders")
 $PassportalApiKey = $PassportalApiKey ?? "$(read-host "please enter your PassportalApiKey")"
 $PassportalApiKeyId = $PassportalApiKeyId ?? "$(read-host "please enter your PassportalApiKeyId")"
+$HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
+$HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
 
 # Set-Up
 foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
@@ -14,7 +16,7 @@ $PassPortalHeaders = @{"x-api-key"    = $PassportalApiKey
                        "Content-Type" = "application/json"}
 $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
 $BaseUri = "https://$($SelectedLocation.APIBase).passportalmsp.com"
-Write-Host "using $($selectedLocation.Location) / $BaseUri for PassPortal"
+Write-Host "using $($selectedLocation.name) / $BaseUri for PassPortal"
 Set-Content -Path $logFile -Value "Starting Sharepoint Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue
 Set-PrintAndLog -message "Imported Hudu Module... $(Get-HuduModule)" -Color DarkBlue
@@ -25,17 +27,16 @@ Set-IncrementedState -newState "Check Source data and get Source Data Options"
 
 
 # --- Example usage ---
-$folders = Get-PassportalFolders
-$passwords = Get-PassportalPasswords
+$folders = Get-PassportalLeafArrays -Data $(Get-PassportalFolders)
+$passwords =  Get-PassportalLeafArrays -Data $(Get-PassportalPasswords)
 
 Write-Output "Folders:"
-$folders | Format-Table
+write-host "$(($folders | convertto-json -depth 66).ToString())"
 
 Write-Output "Passwords:"
-$passwords | Format-Table Name Username Notes
-
+ $passwords
 
 Write-Host "Unsetting vars before next run."
-foreach ($var in $sensitiveVars) {
-    Unset-Vars -varname $var
-}
+# foreach ($var in $sensitiveVars) {
+#     Unset-Vars -varname $var
+# }
