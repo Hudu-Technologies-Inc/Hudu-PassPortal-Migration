@@ -30,9 +30,8 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
 $authResult = Get-PassportalAuthToken `
     -apiKey $passportalData.APIKeyId `
     -apiSecret $passportalData.APIKey `
-    -identifier $passportalData.Identifier `
-    -scope "global"
-
+    -identifier $passportalData.Identifier 
+    
 $passportalData.Token = $authResult.token
 $passportalData.Headers = $authResult.headers
 

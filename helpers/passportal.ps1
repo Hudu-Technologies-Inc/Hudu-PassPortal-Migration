@@ -1,54 +1,25 @@
-function Get-HmacSha256Hex {
-    param (
-        [string]$Message,
-        [string]$Secret
-    )
-
-    $hmac = New-Object System.Security.Cryptography.HMACSHA256
-    $hmac.Key = [System.Text.Encoding]::UTF8.GetBytes($Secret)
-
-    $hashBytes = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Message))
-    return [BitConverter]::ToString($hashBytes) -replace '-', '' | ForEach-Object { $_.ToLower() }
-}
 function Get-PassportalAuthToken {
     param (
-        [string]$apiKey,
-        [string]$apiSecret,
-        [string]$identifier,
-        [string]$scope = 'global'
+        [string]$scope = 'docs_api',
+        [string]$presharedSecret = "aUa&&XUQBJXz2x&"
     )
+    $SHAObject = New-Object System.Security.Cryptography.HMACSHA256
+    $SHAObject.key = [Text.Encoding]::ASCII.GetBytes($passportalData.APIkeyId)
+    $signature = $SHAObject.ComputeHash([Text.Encoding]::ASCII.GetBytes($PresharedSecret))
+    $StringifiedHash = [System.BitConverter]::ToString($signature).Replace('-', '').ToLower()
+    $response = Invoke-RestMethod -Headers @{'X-KEY'  = $passportalData.APIkey; 'X-HASH' = $StringifiedHash} `
+                -Uri "https://$($selectedLocation.APIBase).passportalmsp.com/api/v2/auth/client_token" -Method POST `
+                -Body @{'content' = $PresharedSecret; 'scope'   = "$scope"} `
+                -ContentType "application/x-www-form-urlencoded"
+    write-host "Authentication Result $(if ($response -and $response.success -and $true -eq $response.success) {'Successful'} else {'Failure'})"
 
-    $content = "$scope$identifier"
-
-    $hash = Get-HmacSha256Hex -Message $content -Secret $apiSecret
-    Write-Host "x-hash: $hash"
-    Write-Host "x-key:  $apiKey"
-    Write-Host "content: $content"
-
-    # Build JSON body
-    $body = @{
-        scope      = $scope
-        identifier = $identifier
-        content    = $content
-    } | ConvertTo-Json -Compress
-
-    # Headers for request
-    $headers = @{
-        'x-key'        = $apiKey
-        'x-hash'       = $hash
-        'Content-Type' = 'application/json'
-    }
-
-    # Send request
-    $response = Invoke-RestMethod -Uri "https://us-clover.passportalmsp.com/api/v2/auth/client_token" `
-                                -Method Post `
-                                -Headers $headers `
-                                -Body $body
     return @{
-        token   = $response.token
-        headers = $headers
+        token   = $response.access_token
+        refresh_token = $response.refresh_token
+        headers = @{ 'x-access-token' = $response.access_token }
     }
 }
+
 function Get-PassportalLeafArrays {
     param (
         [Parameter(Mandatory)]
