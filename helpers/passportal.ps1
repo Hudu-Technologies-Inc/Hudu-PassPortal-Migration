@@ -96,3 +96,182 @@ function Get-CSVExportData {
     }
 
 }
+
+$PassportalLayoutDefaults = @{
+    asset           = @{ icon = "fas fa-box";           label = "Assets" }
+    active_directory= @{ icon = "fas fa-network-wired"; label = "Active Directory" }
+    application     = @{ icon = "fas fa-cubes";         label = "Applications" }
+    backup          = @{ icon = "fas fa-database";      label = "Backups" }
+    email           = @{ icon = "fas fa-envelope";      label = "Email Accounts" }
+    folders         = @{ icon = "fas fa-folder";        label = "Folders" }
+    file_sharing    = @{ icon = "fas fa-share-alt";     label = "File Sharing" }
+    contact         = @{ icon = "fas fa-id-badge";      label = "Contacts" }
+    location        = @{ icon = "fas fa-map-marker-alt";label = "Locations" }
+    internet        = @{ icon = "fas fa-globe";         label = "Internet" }
+    lan             = @{ icon = "fas fa-ethernet";      label = "LAN Devices" }
+    printing        = @{ icon = "fas fa-print";         label = "Printers" }
+    remote_access   = @{ icon = "fas fa-desktop";       label = "Remote Access" }
+    vendor          = @{ icon = "fas fa-store";         label = "Vendors" }
+    virtualization  = @{ icon = "fas fa-server";        label = "Virtualization" }
+    voice           = @{ icon = "fas fa-phone";         label = "Voice Systems" }
+    wireless        = @{ icon = "fas fa-wifi";          label = "Wireless" }
+    licencing       = @{ icon = "fas fa-certificate";   label = "Licencing" }
+    custom          = @{ icon = "fas fa-puzzle-piece";  label = "Custom Docs" }
+    ssl             = @{ icon = "fas fa-lock";          label = "SSL Certificates" }
+}
+
+function Get-PassportalFieldMapForType {
+    param (
+        [Parameter(Mandatory)]
+        [string]$Type
+    )
+
+    $fieldMap = @{
+        asset = @(
+            @{ label="Asset Name"; field_type="Text"; required=$true },
+            @{ label="Model"; field_type="Text" },
+            @{ label="Serial Number"; field_type="Text" },
+            @{ label="Purchase Date"; field_type="Date" },
+            @{ label="Notes"; field_type="Textarea" }
+        )
+        active_directory = @(
+            @{ label="Domain Name"; field_type="Text"; required=$true },
+            @{ label="Admin User"; field_type="Text" },
+            @{ label="Admin Password"; field_type="Password" },
+            @{ label="Domain Controller IP"; field_type="Text" }
+        )
+        application = @(
+            @{ label="App Name"; field_type="Text"; required=$true },
+            @{ label="License Key"; field_type="Text" },
+            @{ label="Publisher"; field_type="Text" },
+            @{ label="Install Date"; field_type="Date" }
+        )
+        backup = @(
+            @{ label="Backup Type"; field_type="Text"; required=$true },
+            @{ label="Software Used"; field_type="Text" },
+            @{ label="Schedule"; field_type="Text" },
+            @{ label="Last Successful Backup"; field_type="Date" }
+        )
+        email = @(
+            @{ label="Email Address"; field_type="Text"; required=$true },
+            @{ label="Password"; field_type="Password" },
+            @{ label="IMAP Server"; field_type="Text" },
+            @{ label="SMTP Server"; field_type="Text" }
+        )
+        folders = @(
+            @{ label="Folder Name"; field_type="Text"; required=$true },
+            @{ label="Path"; field_type="Text" },
+            @{ label="Permissions"; field_type="Textarea" }
+        )
+        file_sharing = @(
+            @{ label="Platform"; field_type="Text"; required=$true },
+            @{ label="Link"; field_type="Text" },
+            @{ label="User Accounts"; field_type="Textarea" }
+        )
+        contact = @(
+            @{ label="Full Name"; field_type="Text"; required=$true },
+            @{ label="Email"; field_type="Text" },
+            @{ label="Phone"; field_type="Text" },
+            @{ label="Role"; field_type="Text" }
+        )
+        location = @(
+            @{ label="Location Name"; field_type="Text"; required=$true },
+            @{ label="Address"; field_type="Textarea" },
+            @{ label="Phone"; field_type="Text" }
+        )
+        internet = @(
+            @{ label="ISP"; field_type="Text"; required=$true },
+            @{ label="Account Number"; field_type="Text" },
+            @{ label="Static IPs"; field_type="Textarea" }
+        )
+        lan = @(
+            @{ label="Device Name"; field_type="Text"; required=$true },
+            @{ label="IP Address"; field_type="Text" },
+            @{ label="MAC Address"; field_type="Text" },
+            @{ label="Port Number"; field_type="Text" }
+        )
+        printing = @(
+            @{ label="Printer Name"; field_type="Text"; required=$true },
+            @{ label="IP Address"; field_type="Text" },
+            @{ label="Model"; field_type="Text" },
+            @{ label="Location"; field_type="Text" }
+        )
+        remote_access = @(
+            @{ label="Tool"; field_type="Text"; required=$true },
+            @{ label="Host"; field_type="Text" },
+            @{ label="Username"; field_type="Text" },
+            @{ label="Password"; field_type="Password" }
+        )
+        vendor = @(
+            @{ label="Vendor Name"; field_type="Text"; required=$true },
+            @{ label="Account Rep"; field_type="Text" },
+            @{ label="Phone"; field_type="Text" },
+            @{ label="Support Email"; field_type="Text" }
+        )
+        virtualization = @(
+            @{ label="Hypervisor"; field_type="Text"; required=$true },
+            @{ label="VM Count"; field_type="Text" },
+            @{ label="Primary Host IP"; field_type="Text" }
+        )
+        voice = @(
+            @{ label="Phone System"; field_type="Text"; required=$true },
+            @{ label="SIP Provider"; field_type="Text" },
+            @{ label="Main Number"; field_type="Text" }
+        )
+        wireless = @(
+            @{ label="SSID"; field_type="Text"; required=$true },
+            @{ label="Password"; field_type="Password" },
+            @{ label="Security Type"; field_type="Text" }
+        )
+        licencing = @(
+            @{ label="Software"; field_type="Text"; required=$true },
+            @{ label="License Key"; field_type="Text" },
+            @{ label="Seats"; field_type="Text" },
+            @{ label="Renewal Date"; field_type="Date" }
+        )
+        custom = @(
+            @{ label="Title"; field_type="Text"; required=$true },
+            @{ label="Details"; field_type="Textarea" }
+        )
+        ssl = @(
+            @{ label="Domain"; field_type="Text"; required=$true },
+            @{ label="Expiration Date"; field_type="Date" },
+            @{ label="Issuer"; field_type="Text" },
+            @{ label="SANs"; field_type="Textarea" }
+        )
+    }
+
+    return $fieldMap[$Type.ToLower()] ?? @()
+}
+
+function Build-HuduFieldsFromDocument {
+    param (
+        [Parameter(Mandatory)] [array]$FieldMap,
+        [Parameter(Mandatory)] [object]$Document
+    )
+
+    $fieldValues = @()
+
+    foreach ($fieldDef in $FieldMap) {
+        $label = $fieldDef.label
+        $key = $label -replace '\s+', '' -replace '[^a-zA-Z0-9]' # try to match basic key logic
+
+        $value = $null
+        foreach ($prop in $Document.data.PSObject.Properties) {
+            if ($prop.Name -replace '\s+', '' -ieq $key) {
+                $value = $prop.Value
+                break
+            }
+        }
+
+        if (-not $value -and $Document.data.PSObject.Properties.Match($label)) {
+            $value = $Document.data."$label"
+        }
+
+        $fieldValues += @{ $label = $value }
+    }
+
+    $fieldValues += @{ "PassPortal ID" = $Document.data.id }
+
+    return $fieldValues
+}

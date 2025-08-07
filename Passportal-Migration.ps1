@@ -142,7 +142,7 @@ foreach ($PPcompany in $passportalData.Clients) {
     }
     foreach ($doctype in $passportalData.docTypes) {
         $ObjectsForTransfer =  $passportaldata.Documents | Where-Object { $_.data.type -eq $doctype -and $_.client.id -eq $PPCompany.id}
-        if ($null -eq $ObjectsForTransfer -or $ObjectsForTransfer.count -lt 1){
+        if (-not $ObjectsForTransfer -or $ObjectsForTransfer.count -lt 1){
             write-host "Skipping doctype $doctype transfer for $($ppcompany.name). None present in export/dump"
             continue
         }
@@ -151,24 +151,19 @@ foreach ($PPcompany in $passportalData.Clients) {
 
         if (-not $matchedLayout) {
             Write-Host "Creating new layout for $layoutName"
-            $fields = Get-PassportalFieldMapForType -Type $doctype  # <- Your field map logic
-            $newLayout = New-HuduAssetLayout -name $layoutName -icon "fas fa-$NewIcon" -color "#00adef" -icon_color "#ffffff" -include_passwords $true -include_photos $true -include_comments $true -include_files $true -fields $fields
+            New-HuduAssetLayout -name $layoutName -icon $layoutIcon -color "#300797ff" -icon_color "#bed6a9ff" `
+                -include_passwords $true -include_photos $true -include_comments $true -include_files $true `
+                -fields $(Get-PassportalFieldMapForType -Type $doctype)
             $HuduData.Data.assetlayouts += $newLayout.asset_layout
             $matchedLayout = $newLayout.asset_layout
         }
-        if ($doctype -eq "location")
-            foreach ($location in $ObjectsForTransfer) {
-                New-HuduAsset -name $location.label -companyId $MatchedCompany.id -fields @(
-                    @{"Address"             =  $location.data.label},
-                    @{"Description"         =  $location.data.description},
-                    @{"PassPortal ID"       =  $location.data.id})
-            }
+        $fieldMap = Get-PassportalFieldMapForType -Type $doctype
+        foreach ($obj in $ObjectsForTransfer) {
+            New-HuduAsset -name $($obj.data.label ?? $obj.data.name ?? $obj.data.title ?? "Unnamed $doctype") `
+                -companyId $MatchedCompany.id -layoutId $matchedLayout.id `
+                -fields $(Build-HuduFieldsFromDocument -FieldMap $fieldMap -Document $obj)
         }
-
-
-
-
-
+    }
 }
 
 
