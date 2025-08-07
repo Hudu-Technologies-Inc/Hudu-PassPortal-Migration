@@ -303,6 +303,33 @@ function Get-SafeFilename {
 
     return "$SafeName$SafeExt"
 }
+function ConvertTo-PlainHashtable {
+    param ([object]$input)
+
+    if ($null -eq $input) {
+        return $null
+    }
+
+    if ($input -is [System.Collections.IDictionary]) {
+        $output = @{}
+        foreach ($key in $input.Keys) {
+            $output[$key] = ConvertTo-PlainHashtable -input $input[$key]
+        }
+        return $output
+    }
+    elseif ($input -is [System.Collections.IEnumerable] -and -not ($input -is [string])) {
+        return @($input | ForEach-Object { ConvertTo-PlainHashtable -input $_ })
+    }
+    elseif ($input -is [psobject]) {
+        $output = @{}
+        foreach ($prop in $input.PSObject.Properties) {
+            $output[$prop.Name] = ConvertTo-PlainHashtable -input $prop.Value
+        }
+        return $output
+    }
+
+    return $input
+}
 function New-HuduStubArticle {
     param (
         [string]$Title,

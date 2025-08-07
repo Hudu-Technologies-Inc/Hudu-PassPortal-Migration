@@ -43,6 +43,9 @@ $passportalData.csvData = Get-CSVExportData -exportsFolder $(if ($(test-path $cs
 
 $SourceDataIDX=0
 $SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
+
+$SourceDataIDX = 0
+$SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
 $DetailedDocumentsById = @{}
 
 foreach ($doctype in $passportalData.docTypes) {
@@ -60,7 +63,7 @@ foreach ($doctype in $passportalData.docTypes) {
 
             $resourceURI = "documents/all?$(ConvertTo-QueryString -QueryParams $queryParams)"
             $response = Get-PassportalObjects -resource $resourceURI
-            $results = $response.results
+            $results = @($response.results)
 
             if (-not $results -or -not $response.success -or "$results".ToLower() -eq 'null') {
                 $SourceDataIDX++
@@ -69,32 +72,26 @@ foreach ($doctype in $passportalData.docTypes) {
                 break
             }
 
-            $results = @($results)
+            $Details = @{}
 
-            # Enrich each document with fields
             foreach ($doc in $results) {
-                if ($null -eq $doc -or -not $doc.PSObject.Properties.Match("id")) {
-                    Write-Warning "Skipping blank document"
-                    continue
-                }
-
+                if (-not $doc.id) { continue }
                 $docId = $doc.id
 
-                if (-not $DetailedDocumentsById.ContainsKey($docId)) {
-                    try {
-                        $detailed = Invoke-RestMethod -Uri "$($passportalData.BaseURL)api/v2/documents/$docId" `
-                                                       -Headers $passportalData.Headers -Method Get
-                        $DetailedDocumentsById[$docId] = $detailed
+                if (-not $Details.ContainsKey($docId)) {
+                    $detail = try {
+                        Invoke-RestMethod -Uri "$($passportalData.BaseURL)api/v2/documents/$docId" `
+                                          -Headers $passportalData.Headers -Method Get
                     } catch {
-                        Write-Warning "Failed to fetch detail for $docId- $($_.Exception.Message)"
-                        $DetailedDocumentsById[$docId] = @{}
-                        continue
+                        Write-Warning "Failed to fetch detailed doc $docId... $($_.Exception.Message)"
+                        $null
                     }
+
+                    $Details[$docId] = $detail
+
+                    $fields = $detail?.fields ?? @{}
+                    $doc | Add-Member -NotePropertyName 'fields' -NotePropertyValue $fields -Force
                 }
-
-                $fields = $DetailedDocumentsById[$docId].fields ?? @{}
-                $doc | Add-Member -NotePropertyName 'fields' -NotePropertyValue $fields -Force
-
             }
 
             $passportalData.Documents += [pscustomobject]@{
@@ -104,12 +101,14 @@ foreach ($doctype in $passportalData.docTypes) {
                 client      = $client
                 page        = $page
                 data        = $results
+                details     = $Details
             }
 
             $page++
         }
     }
 }
+
 if (-not $passportaldata.Documents -or $passportaldata.Documents.Count -lt 1){
     Write-Host "Couldnt fetch any viable documents. Ensure Passportal API service is running and try again."
     exit
@@ -117,7 +116,7 @@ if (-not $passportaldata.Documents -or $passportaldata.Documents.Count -lt 1){
 foreach ($obj in $passportaldata.Documents){
     Write-Host "$($obj.doctype) for $($obj.client): $(Write-InspectObject -object $obj.data)"
 }
-$passportaldata.Documents | ConvertTo-Json -Depth 45 | Out-File "export.json"
+$(ConvertTo-PlainHashtable -input $passportalData.Documents) | ConvertTo-Json -Depth 45 | Out-File "export.json"
 
 
 ### LOAD DESTDATA and determine import strategy
