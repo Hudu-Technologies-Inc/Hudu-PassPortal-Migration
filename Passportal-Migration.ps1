@@ -1,7 +1,7 @@
 $workdir = $PSScriptRoot
 # --- CONFIGURATION ---
 $passportalData = @{
-    docTypes = @( "asset","active_directory","application","backup","email","file_sharing","contact","location","internet","lan","printing","remote_access","vendor","virtualization","voice","wireless","licencing","custom","ssl");
+    docTypes = @("asset","active_directory","application","backup","email","file_sharing","contact","location","internet","lan","printing","remote_access","vendor","virtualization","voice","wireless","licencing","custom","ssl");
     APIkey = $($passportalData_APIkey ?? "$(read-host "please enter your Passportal API key")"); APIkeyId = $($passportalData_APIkeyId ?? "$(read-host "please enter your Passportal API key")")
     Token = $null; Headers = @{}; BaseURL = $null; clients=@(); documents =@{}; csvData = @{}
 }
@@ -90,20 +90,33 @@ if ($RunSummary.JobInfo.MigrationSource.Count -lt 1){
     exit
 }
 
-foreach ($client in $passportalData.Clients) {
-    foreach ($doctype in $passportalData.docTypes) {
+foreach ($doctype in $passportalData.docTypes) {
+    foreach ($client in $passportalData.Clients) {
         $page = 1
         while ($true) {
             Write-Host "Fetching $doctype for $($client.name); page $page"
-            $resourceURI = "documents/all?resultsPerPage=100&pageNum=$page&type=$doctype&clientId=$($client.id)"
-            
+            $baseURI = "https://us-clover.passportalmsp.com/api/v2/documents/all"
+            $queryParams = @{
+                type=$doctype
+                orderBy="label"
+                orderDir="asc"
+                clientId=$client.id
+                resultsPerPage=1000
+                pageNum=$page
+            }
+            $resourceURI = "$baseURI?$(ConvertTo-QueryString -QueryParams $queryParams)"
+
             $response = Get-PassportalObjects -resource $resourceURI
             $results = $response.results
 
-            if (-not $results) {
+            if (-not $results -or -not $response.success -or -not $true -eq $response.success) {
                 break
+            } else {
+                write-host "$($($results | convertto-json -depth 66).ToString())"
             }
+
             $passportalData.Documents += [pscustomobject]@{
+                queryParams = $queryParams
                 resourceURI = $resourceURI
                 doctype     = $doctype
                 clientId    = $client.id
@@ -115,7 +128,7 @@ foreach ($client in $passportalData.Clients) {
             $page++
         }
     }
-}
+}g
 
 
 Write-Host "Unsetting vars before next run."

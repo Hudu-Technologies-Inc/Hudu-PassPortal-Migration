@@ -17,10 +17,22 @@ function Get-PassportalAuthToken {
     return @{
         token   = $response.access_token
         refresh_token = $response.refresh_token
-        headers = @{ 'x-access-token' = $response.access_token }
+        headers = @{ 'x-access-token' = $response.access_token 
+                      'accept' = 'application/json'}
     }
+
 }
 
+function ConvertTo-QueryString {
+    param (
+        [Parameter(Mandatory)]
+        [hashtable]$QueryParams
+    )
+
+    return ($QueryParams.GetEnumerator() | ForEach-Object {
+        "$([uri]::EscapeDataString($_.Key))=$([uri]::EscapeDataString($_.Value))"
+    }) -join '&'
+}
 function Get-PassportalLeafArrays {
     param (
         [Parameter(Mandatory)]
@@ -47,13 +59,11 @@ function Get-PassportalObjects {
     )
 
     $uri = "$($passportalData.BaseURL)api/v2/$($resource.ToLower())"
-    Write-Host "Requesting $resource from $uri"
     try {
         $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $passportalData.requestHeaders
         return $response
     } catch {
-        Write-Warning "Failed to get $resource. $_"
-        return @()
+        return $null
     }
 }
 
