@@ -1,3 +1,4 @@
+
 function Get-PassportalAuthToken {
     param (
         [string]$scope = 'docs_api',

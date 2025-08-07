@@ -9,7 +9,7 @@ $passportalData = @{
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders","passportalData")
 $HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
 $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
-$passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/api/v2"
+$passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
 
 # Set-Up
 foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
