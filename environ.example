@@ -1,8 +1,8 @@
 
 $huduBaseURL = "ururl.huducloud.com"
 $HuduAPIKey = ""
-$passportalData_APIkey="api secret key"
-$passportalData_APIkeyId="api key id"
+$passportalData_SecretKeyID="access key id"
+$passportalData_SecretAccessKey="secret access key"
 $SelectedLocation = @{APIBase="us-clover"; name="United States"}
 
 . .\Passportal-Migration.ps1

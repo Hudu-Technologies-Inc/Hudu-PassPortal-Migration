@@ -1,27 +1,18 @@
 $workdir = $PSScriptRoot
-# --- CONFIGURATION ---
-$passportalData = @{
-    Requested = @("folders", "passwords", "clients", "companies"); Fetched = @{}
-    APIkey = $($passportalData_APIkey ?? "$(read-host "please enter your Passportal API key")"); APIkeyId = $($passportalData_APIkeyId ?? "$(read-host "please enter your Passportal API key")")
-    Token = $null; Headers = @{}; BaseURL = $null
-}
-
-$sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders","passportalData")
-$HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
-$HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
-$passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
-
 # Set-Up
+$sensitiveVars = @("PassportalApiKey","PassportalSecretAccessKey","HuduApiKey","PassPortalHeaders","passportalData")
 foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
     Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
     . $file.FullName
 }
+$passportalData = Set-PassportalData
 
-$authResult = Get-PassportalAuthToken    
-$passportalData.Token = $authResult.token
-$passportalData.Headers = $authResult.headers
+$HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
+$HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
 
-$SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
+
+
+ 
 Write-Host "using $($selectedLocation.name) / $BaseUri for PassPortal"
 Set-Content -Path $logFile -Value "Starting Passportal Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue

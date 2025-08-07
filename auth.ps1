@@ -1,5 +1,5 @@
-$apiKey = $passportalData_APIkeyId
-$apiSecret = $passportalData_APIkey
+$apiKey = $passportalData_SecretAccessKey
+$apiSecret = $passportalData_SecretKeyID
 $scope = "docs_api"
 $content = "aUa&&XUQBJXz2x&"
 
