@@ -40,12 +40,14 @@ write-host $passportalData.Token
 $passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get -Verbose).results
 foreach ($client in $passportalData.Clients) {Write-Host "found $($client.id)- $($client.name)"}
 Get-CSVExportData -exportsFolder $(Join-Path $workdir "exported-csvs")
-if ($RunSummary.JobInfo.MigrationSource.Count -lt 1){
-    Write-Host "No clients selected for Migration Source. Exiting."
-    exit
-}
+
+$SourceDataIDX=0
+$SourceDataTotal=$($doctype.Count * $client.Count)
 foreach ($doctype in $passportalData.docTypes) {
     foreach ($client in $passportalData.Clients) {
+        $SourceDataIDX = $SourceDataIDX+1
+        $completionPercentage = Get-PercentDone -current $resourceIDX -Total $SourceDataTotal
+
         $page = 1
         while ($true) {
             $queryParams = @{
@@ -57,7 +59,7 @@ foreach ($doctype in $passportalData.docTypes) {
                 pageNum=$page
             }
             $resourceURI = "documents/all?$(ConvertTo-QueryString -QueryParams $queryParams)"
-            Write-Host "Fetching $doctype for $($client.name); page $page via $resourceURI"
+            Write-Progress -Activity "Fetching $doctype for $($client.name); page $page" -Status "$completionPercentage%" -PercentComplete $completionPercentage
 
             $response = Get-PassportalObjects -resource $resourceURI
             $results = $response.results
@@ -91,7 +93,7 @@ $passportaldata.Documents | ConvertTo-Json -Depth 45 | Out-File "export.json"
 ### LOAD DESTDATA and determine import path
 ##
 #
-Write-Host "obtaining dest info!"
+Write-Host "obtaining data from Hudu!"
 $HuduData = @{
     Resources = @(
         @{name="companies"; request="Get-HuduCompanies"},
@@ -110,7 +112,11 @@ $HuduData = @{
     AssetLayoutNames = @{}
 }
 
+$resourceIDX=0
 foreach ($resource in $HuduData.Resources) {
+    $resourceIDX=$resourceIDX+1
+    $completionPercentage = Get-PercentDone -current $resourceIDX -Total $HuduData.Resources.count
+    Write-Progress -Activity "Obtaining Data from Hudu... Resource- $($resource.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
     $result = & $resource.request
     $HuduData.Data[$resource.name] = $($result ?? @())
 }
@@ -131,7 +137,7 @@ if (-not $HuduData.AssetLayoutNames -contains "Location" -or -not $HuduData.Asse
 
 
 foreach ($PPcompany in $passportalData.Clients) {
-    $MatchedCompany  = Select-ObjectFromList -objects $Hududata.Data.companies -message "Which Company would you like to attribute PassPortal Company $($PPcompany.id)- $($PPcompany.name) to in Hudu?" -allowNull $false
+    $MatchedCompany  = Select-ObjectFromList -objects $runSummary.JobInfo.AttriutionOptions -message "Which Company would you like to attribute PassPortal Company $($PPcompany.id)- $($PPcompany.name) to in Hudu?" -allowNull $false
     if ($MatchedCompany.id -eq -1) {
         write-host "Skipping $($PPcompany.name) per user request."
         continue
@@ -139,6 +145,7 @@ foreach ($PPcompany in $passportalData.Clients) {
     if ($MatchedCompany.id -eq  0) {
         write-host "Creating new Company, "
         $MatchedCompany = New-HuduCompany -Name $PPcompany.name
+        $runSummary.JobInfo.AttriutionOptions.Add($matchedCompany)
     }
     foreach ($doctype in $passportalData.docTypes) {
         $ObjectsForTransfer =  $passportaldata.Documents | Where-Object { $_.data.type -eq $doctype -and $_.client.id -eq $PPCompany.id}
@@ -146,7 +153,7 @@ foreach ($PPcompany in $passportalData.Clients) {
             write-host "Skipping doctype $doctype transfer for $($ppcompany.name). None present in export/dump"
             continue
         }
-        $layoutName = Capitalize-First $doctype
+        $layoutName = Set-Capitalized $doctype
         $matchedLayout = $HuduData.Data.assetlayouts | Where-Object { $_.name -eq $layoutName }
 
         if (-not $matchedLayout) {
