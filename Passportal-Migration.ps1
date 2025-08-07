@@ -3,7 +3,7 @@ $workdir = $PSScriptRoot
 $passportalData = @{
     docTypes = @( "asset","active_directory","application","backup","email","file_sharing","contact","location","internet","lan","printing","remote_access","vendor","virtualization","voice","wireless","licencing","custom","ssl");
     APIkey = $($passportalData_APIkey ?? "$(read-host "please enter your Passportal API key")"); APIkeyId = $($passportalData_APIkeyId ?? "$(read-host "please enter your Passportal API key")")
-    Token = $null; Headers = @{}; BaseURL = $null; clients=@(); documents =@(); csvData = @()
+    Token = $null; Headers = @{}; BaseURL = $null; clients=@(); documents =@{}; csvData = @{}
 }
 
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders","passportalData")
@@ -22,7 +22,7 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
 $authResult = Get-PassportalAuthToken    
 $passportalData.Token = $authResult.token
 $passportalData.Headers = $authResult.headers
-
+write-host $passportalData.Token
 Set-Content -Path $logFile -Value "Starting Passportal Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue
 Set-PrintAndLog -message "Imported Hudu Module... $(Get-HuduModule)" -Color DarkBlue
@@ -46,12 +46,32 @@ foreach ($file in Get-ChildItem -Path ".\exported-csvs" -Filter "*.csv" -File | 
         $csv = if ($hasHeader) {
             Import-Csv -Path $fullPath
         } else {
-            # Provide fallback headers if missing
-            Import-Csv -Path $fullPath -Header "PassPortal ID","Name","Email","OtherField"
+            Import-Csv -Path $fullPath -Header "PassPortal ID","Name","Email"
         }
+        $passportalData.csvData['clients'] = $csv
+    } elseif ($file.Name -like "*passwords.csv") {
+        $csv = if ($hasHeader) {
+            Import-Csv -Path $fullPath
+        } else {
+            Import-Csv -Path $fullPath -Header "Passportal ID","Client Name","Credential","Username","Password","Description","Expires (Yes/No)","Notes","URL","Folder(Optional)"
+        }
+        $passportalData.csvData['passwords'] = $csv
+    } elseif ($file.Name -like "*users.csv") {
+        $csv = if ($hasHeader) {
+            Import-Csv -Path $fullPath
+        } else {
+            Import-Csv -Path $fullPath -Header "Passportal ID (BLANK)","Last Name","First Name","Email","Phone"
 
-        $passportalData.csvData['Clients'] = $csv
-    }
+        }
+        $passportalData.csvData['users'] = $csv
+    } elseif ($file.Name -like "*vault.csv") {
+        $csv = if ($hasHeader) {
+            Import-Csv -Path $fullPath
+        } else {
+            Import-Csv -Path $fullPath -Header "Passportal ID","Credential","Username","Password","Description","Expires (Yes/No)","Notes","URL","Folder(Optional)"
+        }
+        $passportalData.csvData['vault'] = $csv
+    }        
 }
 
 if ($(Select-ObjectFromList -objects @("all-clients","select-clients") -message "Would you like transfer data from all clients, or a slect list of clients") -eq "all-clients"){
@@ -70,8 +90,32 @@ if ($RunSummary.JobInfo.MigrationSource.Count -lt 1){
     exit
 }
 
-write-host "Fetching $objType from Passportal"
-$PassportalData.documents = Get-PassportalObjects -resource "documents"
+foreach ($client in $passportalData.Clients) {
+    foreach ($doctype in $passportalData.docTypes) {
+        $page = 1
+        while ($true) {
+            Write-Host "Fetching $doctype for $($client.name); page $page"
+            $resourceURI = "documents/all?resultsPerPage=100&pageNum=$page&type=$doctype&clientId=$($client.id)"
+            
+            $response = Get-PassportalObjects -resource $resourceURI
+            $results = $response.results
+
+            if (-not $results) {
+                break
+            }
+            $passportalData.Documents += [pscustomobject]@{
+                resourceURI = $resourceURI
+                doctype     = $doctype
+                clientId    = $client.id
+                page        = $page
+                data        = $results
+            }
+            write-host "$($($results | convertto-json -depth 66).ToString())"
+
+            $page++
+        }
+    }
+}
 
 
 Write-Host "Unsetting vars before next run."
