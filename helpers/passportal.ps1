@@ -161,12 +161,12 @@ function Get-PassportalFieldMapForType {
         folders = @(
             @{ label="Folder Name"; field_type="Text" },
             @{ label="Path"; field_type="Text" },
-            @{ label="Permissions"; field_type="Textarea" }
+            @{ label="Permissions"; field_type="RichText" }
         )
         file_sharing = @(
             @{ label="Platform"; field_type="Text" },
             @{ label="Link"; field_type="Text" },
-            @{ label="User Accounts"; field_type="Textarea" }
+            @{ label="User Accounts"; field_type="RichText" }
         )
         contact = @(
             @{ label="Full Name"; field_type="Text" },
@@ -176,13 +176,13 @@ function Get-PassportalFieldMapForType {
         )
         location = @(
             @{ label="Location Name"; field_type="Text" },
-            @{ label="Address"; field_type="Textarea" },
+            @{ label="Address"; field_type="RichText" },
             @{ label="Phone"; field_type="Text" }
         )
         internet = @(
             @{ label="ISP"; field_type="Text" },
             @{ label="Account Number"; field_type="Text" },
-            @{ label="Static IPs"; field_type="Textarea" }
+            @{ label="Static IPs"; field_type="RichText" }
         )
         lan = @(
             @{ label="Device Name"; field_type="Text" },
@@ -231,16 +231,17 @@ function Get-PassportalFieldMapForType {
         )
         custom = @(
             @{ label="Title"; field_type="Text" },
-            @{ label="Details"; field_type="Textarea" }
+            @{ label="Details"; field_type="RichText" }
         )
         ssl = @(
             @{ label="Domain"; field_type="Text" },
             @{ label="Expiration Date"; field_type="Date" },
             @{ label="Issuer"; field_type="Text" },
-            @{ label="SANs"; field_type="Textarea" }
+            @{ label="SANs"; field_type="RichText" }
         )
     }
     $fields = $fieldMap[$Type.ToLower()] ?? @()
+    $fields+=@{label="PassPortalID"; field_type="Text"}
     for ($i = 0; $i -lt $fields.Count; $i++) {
         $fields[$i].position = $i + 1
     }
@@ -263,6 +264,6 @@ function Build-HuduFieldsFromDocument {
         $fieldValues += @{ $label = $value }
     }
 
-    $fieldValues += @{ "PassPortal ID" = $Document.data.id }
+    $fieldValues += @{ "PassPortalID" = $Document.data.id }
     return $fieldValues
 }
