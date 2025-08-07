@@ -42,7 +42,7 @@ foreach ($client in $passportalData.Clients) {Write-Host "found $($client.id)- $
 Get-CSVExportData -exportsFolder $(Join-Path $workdir "exported-csvs")
 
 $SourceDataIDX=0
-$SourceDataTotal=$($doctype.Count * $client.Count)
+$SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
 foreach ($doctype in $passportalData.docTypes) {
     foreach ($client in $passportalData.Clients) {
         $SourceDataIDX = $SourceDataIDX+1
