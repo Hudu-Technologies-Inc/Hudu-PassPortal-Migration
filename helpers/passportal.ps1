@@ -46,7 +46,7 @@ function Get-PassportalObjects {
         [Parameter(Mandatory)][string]$ObjectType
     )
 
-    $uri = "$($passportalData.BaseURL)/$($ObjectType.ToLower())"
+    $uri = "$($passportalData.BaseURL)api/v2/$($ObjectType.ToLower())"
     Write-Host "Requesting $ObjectType from $uri"
     try {
         $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $passportalData.requestHeaders

@@ -3,12 +3,14 @@ $workdir = $PSScriptRoot
 $passportalData = @{
     Requested = @("folders", "passwords", "clients", "companies"); Fetched = @{}
     APIkey = $($passportalData_APIkey ?? "$(read-host "please enter your Passportal API key")"); APIkeyId = $($passportalData_APIkeyId ?? "$(read-host "please enter your Passportal API key")")
-    Token = $null; Headers = @{}; BaseURL = $null
+    Token = $null; Headers = @{}; BaseURL = $null; clients=@()
 }
 
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders","passportalData")
 $HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
 $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
+$SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
+Write-Host "using $($selectedLocation.name) / $BaseUri for PassPortal"
 $passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
 
 # Set-Up
@@ -21,14 +23,16 @@ $authResult = Get-PassportalAuthToken
 $passportalData.Token = $authResult.token
 $passportalData.Headers = $authResult.headers
 
-$SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
-Write-Host "using $($selectedLocation.name) / $BaseUri for PassPortal"
 Set-Content -Path $logFile -Value "Starting Passportal Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue
 Set-PrintAndLog -message "Imported Hudu Module... $(Get-HuduModule)" -Color DarkBlue
 Set-PrintAndLog -message "Checked Hudu Credentials... $(Set-HuduInstance)" -Color DarkBlue
 Set-PrintAndLog -message "Checked Hudu Version... $(Get-HuduVersionCompatible)" -Color DarkBlue
 Set-IncrementedState -newState "Check Source data and get Source Data Options"
+
+$passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get -Verbose).results
+foreach ($client in $passportalData.Clients) {Write-Host "found $($client.id)- $($client.name)"}
+
 
 
 # --- Example usage ---
