@@ -46,7 +46,8 @@ $SourceDataTotal=$($doctype.Count * $client.Count)
 foreach ($doctype in $passportalData.docTypes) {
     foreach ($client in $passportalData.Clients) {
         $SourceDataIDX = $SourceDataIDX+1
-        $completionPercentage = Get-PercentDone -current $resourceIDX -Total $SourceDataTotal
+        $completionPercentage = Get-PercentDone -current $SourceDataIDX -Total $SourceDataTotal
+        Write-Progress -Activity "Fetching $doctype for $($client.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
 
         $page = 1
         while ($true) {
@@ -59,7 +60,6 @@ foreach ($doctype in $passportalData.docTypes) {
                 pageNum=$page
             }
             $resourceURI = "documents/all?$(ConvertTo-QueryString -QueryParams $queryParams)"
-            Write-Progress -Activity "Fetching $doctype for $($client.name); page $page" -Status "$completionPercentage%" -PercentComplete $completionPercentage
 
             $response = Get-PassportalObjects -resource $resourceURI
             $results = $response.results
@@ -158,7 +158,7 @@ foreach ($PPcompany in $passportalData.Clients) {
 
         if (-not $matchedLayout) {
             Write-Host "Creating new layout for $layoutName"
-            New-HuduAssetLayout -name $layoutName -icon $layoutIcon -color "#300797ff" -icon_color "#bed6a9ff" `
+            New-HuduAssetLayout -name $layoutName -icon $($PassportalLayoutDefaults[$docType]).icon -color "#300797ff" -icon_color "#bed6a9ff" `
                 -include_passwords $true -include_photos $true -include_comments $true -include_files $true `
                 -fields $(Get-PassportalFieldMapForType -Type $doctype)
             $HuduData.Data.assetlayouts += $newLayout.asset_layout
