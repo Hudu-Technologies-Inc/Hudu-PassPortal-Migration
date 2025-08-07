@@ -37,17 +37,14 @@ $passportalData.Token = $authResult.token
 $passportalData.Headers = $authResult.headers
 write-host $passportalData.Token
 
-$passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get -Verbose).results
+$passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get).results
 foreach ($client in $passportalData.Clients) {Write-Host "found $($client.id)- $($client.name)"}
-Get-CSVExportData -exportsFolder $(Join-Path $workdir "exported-csvs")
+$passportalData.csvData = Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"})
 
 $SourceDataIDX=0
 $SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
 foreach ($doctype in $passportalData.docTypes) {
     foreach ($client in $passportalData.Clients) {
-        $SourceDataIDX = $SourceDataIDX+1
-        $completionPercentage = Get-PercentDone -current $SourceDataIDX -Total $SourceDataTotal
-        Write-Progress -Activity "Fetching $doctype for $($client.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
 
         $page = 1
         while ($true) {
@@ -64,7 +61,10 @@ foreach ($doctype in $passportalData.docTypes) {
             $response = Get-PassportalObjects -resource $resourceURI
             $results = $response.results
 
-            if (-not $results -or $results -eq $null -or "$results".ToLower() -eq 'null' -or -not $response.success -or -not $true -eq $response.success) {
+            if (-not $results -or $null -eq $results -or "$results".ToLower() -eq 'null' -or -not $response.success -or -not $true -eq $response.success) {
+                $SourceDataIDX = $SourceDataIDX+1
+                $completionPercentage = Get-PercentDone -current $SourceDataIDX -Total $SourceDataTotal
+                Write-Progress -Activity "Fetching $doctype for $($client.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage    
                 break
             }
 
@@ -90,7 +90,7 @@ foreach ($obj in $passportaldata.Documents){
 $passportaldata.Documents | ConvertTo-Json -Depth 45 | Out-File "export.json"
 
 
-### LOAD DESTDATA and determine import path
+### LOAD DESTDATA and determine import strategy
 ##
 #
 Write-Host "obtaining data from Hudu!"
@@ -120,42 +120,45 @@ foreach ($resource in $HuduData.Resources) {
     $result = & $resource.request
     $HuduData.Data[$resource.name] = $($result ?? @())
 }
+$alwaysCreateCompanies=$false
 $companiesTable = @{}
 foreach ($huduCompany in $Hududata.Data.companies){
     $runSummary.JobInfo.AttriutionOptions.Add(@{Id=$huducompany.id; Name="$($huducompany.Name)"})
     $companiesTable[$huducompany.id]=$huducompany
 }
-$HuduData.AssetLayoutNames = $HuduData.Data.AssetLayouts
-if (-not $HuduData.AssetLayoutNames -contains "Location" -or -not $HuduData.AssetLayoutNames -contains "Locations"){
-    $newLocationLayout = New-Huduassetlayout -name "Locations" -icon "fas fa-$NewIcon" -color "#00adef" -icon_color "#ffffff" -include_passwords $true -include_photos $true -include_comments $true -include_files $true -fields $LocAssetLayoutFields 
-    $HuduData.AssetLayoutNames+=$newLocationLayout.asset_layout.name
-    $HuduData.Data.assetlayouts+=$newLocationLayout.asset_layout
+if ($Hududata.Data.companies.count -lt 1) {
+    Write-Host "Hudu doesnt have any companies yet- Opting to create companies instead of matching"
+    $alwaysCreateCompanies=$true
 }
 
+### Transfer assets, companies, and layouts into hudu
+##
+#
+$TransferIDX=0
+$TransferredTotal = $passportalData.Clients.count
+foreach ($PPcompany in $PassportalData.Clients) {
+    $TransferIDX = $SourceDataIDX+1
+    $completionPercentage = Get-PercentDone -current $TransferIDX -Total $TransferredTotal
+    Write-Progress -Activity "Transferring items for $($PPcompany.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
 
-
-
-
-foreach ($PPcompany in $passportalData.Clients) {
-    $MatchedCompany  = Select-ObjectFromList -objects $runSummary.JobInfo.AttriutionOptions -message "Which Company would you like to attribute PassPortal Company $($PPcompany.id)- $($PPcompany.name) to in Hudu?" -allowNull $false
-    if ($MatchedCompany.id -eq -1) {
-        write-host "Skipping $($PPcompany.name) per user request."
-        continue
-    }
+    # Set, Match, Create, or Skip company
+    $MatchedCompany=$(if ($true -eq $alwaysCreateCompanies) {@{Id= 0; Name="Create New"}} else {$(Select-ObjectFromList -objects $runSummary.JobInfo.AttriutionOptions -message "Which Company would you like to attribute PassPortal Company $($PPcompany.id)- $($PPcompany.name) to in Hudu?" -allowNull $false)})
+    if ($MatchedCompany.id -eq -1) {write-host "Skipping $($PPcompany.name) per user request."; continue}
     if ($MatchedCompany.id -eq  0) {
-        write-host "Creating new Company, "
+        write-host "Creating new Company, $($PPcompany.name)"
         $MatchedCompany = New-HuduCompany -Name $PPcompany.name
         $runSummary.JobInfo.AttriutionOptions.Add($matchedCompany)
     }
+    Write-Host "Company set to $($MatchedCompany.name) for $($ppcompany.name)"
+
+    # Migrate all doctypes for company, if no doctypes for company, skip for now
     foreach ($doctype in $passportalData.docTypes) {
         $ObjectsForTransfer =  $passportaldata.Documents | Where-Object { $_.data.type -eq $doctype -and $_.client.id -eq $PPCompany.id}
-        if (-not $ObjectsForTransfer -or $ObjectsForTransfer.count -lt 1){
-            write-host "Skipping doctype $doctype transfer for $($ppcompany.name). None present in export/dump"
-            continue
-        }
+        if (-not $ObjectsForTransfer -or $ObjectsForTransfer.count -lt 1){write-host "Skipping doctype $doctype transfer for $($ppcompany.name). None present in export/dump"; continue}
+
+    # Match layout in hudu to doctype in Passportal. Create if not in Hudu
         $layoutName = Set-Capitalized $doctype
         $matchedLayout = $HuduData.Data.assetlayouts | Where-Object { $_.name -eq $layoutName }
-
         if (-not $matchedLayout) {
             Write-Host "Creating new layout for $layoutName"
             New-HuduAssetLayout -name $layoutName -icon $($PassportalLayoutDefaults[$docType]).icon -color "#300797ff" -icon_color "#bed6a9ff" `
@@ -164,11 +167,11 @@ foreach ($PPcompany in $passportalData.Clients) {
             $HuduData.Data.assetlayouts += $newLayout.asset_layout
             $matchedLayout = $newLayout.asset_layout
         }
-        $fieldMap = Get-PassportalFieldMapForType -Type $doctype
+    # Create new asset for each doc in type
         foreach ($obj in $ObjectsForTransfer) {
-            New-HuduAsset -name $($obj.data.label ?? $obj.data.name ?? $obj.data.title ?? "Unnamed $doctype") `
-                -companyId $MatchedCompany.id -layoutId $matchedLayout.id `
-                -fields $(Build-HuduFieldsFromDocument -FieldMap $fieldMap -Document $obj)
+            New-HuduAsset -name "$($obj.data.label ?? $obj.data.name ?? $obj.data.title ?? "Unnamed $doctype")" `
+                -companyId $MatchedCompany.id -AssetLayoutId $matchedLayout.id `
+                -fields $(Build-HuduFieldsFromDocument -FieldMap $(Get-PassportalFieldMapForType -Type $doctype) -Document $obj)
         }
     }
 }
