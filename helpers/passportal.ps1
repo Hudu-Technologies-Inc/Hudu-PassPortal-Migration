@@ -247,23 +247,37 @@ function Get-PassportalFieldMapForType {
     }
     return $fields
 }
-
 function Build-HuduFieldsFromDocument {
     param (
         [Parameter(Mandatory)] [array]$FieldMap,
-        [Parameter(Mandatory)] [object]$Document
+        [Parameter(Mandatory)] $sourceFields,
+        [int]$docId
     )
 
-    $fieldValues = @()
-    $source = $Document.data.fields
+    $fieldValues = @{}
+    if (-not $sourceFields) {
+        Write-Warning "No detail entry found for document ID $docId"
+        return @{}
+    }
+
+    $sourceFields
 
     foreach ($fieldDef in $FieldMap) {
         $label = $fieldDef.label
-        $value = $source[$label]
 
-        $fieldValues += @{ $label = $value }
+        if ($sourceFields.ContainsKey($label)) {
+            $value = $sourceFields[$label]
+
+            if ($value -is [hashtable] -and $value.ContainsKey("value")) {
+                $actualValue = $value.value.text
+            } else {
+                $actualValue = $value
+            }
+
+            $fieldValues[$label] = $actualValue
+        }
     }
 
-    $fieldValues += @{ "PassPortalID" = $Document.data.id }
+    $fieldValues["PassPortalID"] = $docId
     return $fieldValues
 }

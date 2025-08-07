@@ -176,7 +176,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
 
     # Migrate all doctypes for company, if no doctypes for company, skip for now
     foreach ($doctype in $passportalData.docTypes) {
-        $ObjectsForTransfer =  $passportaldata.Documents | Where-Object { $_.data.type -eq $doctype -and $_.client.id -eq $PPCompany.id}
+        $ObjectsForTransfer =  $passportaldata.Documents.data | Where-Object { $_.data.type -eq $doctype -and $_.client.id -eq $PPCompany.id}
         if (-not $ObjectsForTransfer -or $ObjectsForTransfer.count -lt 1){write-host "Skipping doctype $doctype transfer for $($ppcompany.name). None present in export/dump"; continue}
 
     # Match layout in hudu to doctype in Passportal. Create if not in Hudu
@@ -192,6 +192,10 @@ foreach ($PPcompany in $PassportalData.Clients) {
         }
     # Create new asset for each doc in type
         foreach ($obj in $ObjectsForTransfer) {
+            $fields = $passportalData.documents.details | Where-Object { $_.ID -eq $Document.data.id }
+
+
+
             New-HuduAsset -name "$($obj.data.label ?? $obj.data.name ?? $obj.data.title ?? "Unnamed $doctype")" `
                 -companyId $MatchedCompany.id -AssetLayoutId $matchedLayout.id `
                 -fields $(Build-HuduFieldsFromDocument -FieldMap $(Get-PassportalFieldMapForType -Type $doctype) -Document $obj)
