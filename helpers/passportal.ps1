@@ -43,7 +43,8 @@ function Get-PassportalLeafArrays {
 # --- MAIN FUNCTION TO FETCH AND FLATTEN ---
 function Get-PassportalObjects {
     param (
-        [Parameter(Mandatory)][string]$ObjectType
+        [Parameter(Mandatory)][string]$ObjectType,
+        
     )
 
     $uri = "$($passportalData.BaseURL)api/v2/$($ObjectType.ToLower())"

@@ -49,7 +49,7 @@ $RunSummary=@{
         SourceFilesAsAttachments = $true
     }
     JobInfo=@{
-        MigrationSource     = [PSCustomObject]@{}
+        MigrationSource     = [System.Collections.ArrayList]@()
         MigrationDest       = [PSCustomObject]@{}
         sites               = [System.Collections.ArrayList]@()
         pages               = [System.Collections.ArrayList]@()

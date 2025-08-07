@@ -33,7 +33,21 @@ Set-IncrementedState -newState "Check Source data and get Source Data Options"
 $passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get -Verbose).results
 foreach ($client in $passportalData.Clients) {Write-Host "found $($client.id)- $($client.name)"}
 
-
+if ($(Select-ObjectFromList -objects @("all-clients","select-clients") -message "Would you like transfer data from all clients, or a slect list of clients") -eq "all-clients"){
+    $RunSummary.JobInfo.MigrationSource.AddRange($passportalData.Clients)
+} else {
+    foreach ($client in $passportalData.Clients) {
+        if ($(Select-ObjectFromList -objects @("yes","no") -message "Would you like to include data from client $($client.ID): $($client.Name) in this transfer to Hudu?") -eq "yes"){
+            $RunSummary.JobInfo.MigrationSource.add($client)
+        } else {
+            Write-Host "Opted to not transfer data from client $($client.ID): $($client.Name)"
+        }
+    }
+}
+if ($RunSummary.JobInfo.MigrationSource.Count -lt 1){
+    Write-Host "No clients selected for Migration Source. Exiting."
+    exit
+}
 
 # --- Example usage ---
 foreach ($objType in $passportalData.Requested) {
