@@ -12,10 +12,6 @@ $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPor
 $HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
 $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
 $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
-<<<<<<< HEAD
-=======
-Write-Host "using $($selectedLocation.name) / $BaseUri for PassPortal"
->>>>>>> c05642d806775e28df04367a71183de628311dbb
 $passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
 
 ### SETUP
@@ -25,11 +21,8 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
     Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
     . $file.FullName
 }
-<<<<<<< HEAD
 Set-IncrementedState -newState "Set up and init"
 Set-PrintAndLog -message "using $($selectedLocation.name) / $BaseUri for PassPortal" -Color DarkBlue
-=======
->>>>>>> c05642d806775e28df04367a71183de628311dbb
 Set-Content -Path $logFile -Value "Starting Passportal Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue
 Set-PrintAndLog -message "Imported Hudu Module... $(Get-HuduModule)" -Color DarkBlue
@@ -40,7 +33,6 @@ Set-IncrementedState -newState "Check Source data and get Source Data Options"
 ### LOAD SOURCEDATA
 ##
 #
-<<<<<<< HEAD
 Set-IncrementedState -newState "Load Source Data"
 $authResult = Get-PassportalAuthToken    
 $passportalData.Token = $authResult.token
@@ -53,25 +45,6 @@ $passportalData.csvData = Get-CSVExportData -exportsFolder $(if ($(test-path $cs
 $SourceDataIDX = 0
 $SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
 try {foreach ($doctype in $passportalData.docTypes) {
-=======
-$authResult = Get-PassportalAuthToken    
-$passportalData.Token = $authResult.token
-$passportalData.Headers = $authResult.headers
-write-host $passportalData.Token
-
-$passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get).results
-foreach ($client in $passportalData.Clients) {Write-Host "found $($client.id)- $($client.name)"}
-$passportalData.csvData = Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"})
-
-$SourceDataIDX=0
-$SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
-
-$SourceDataIDX = 0
-$SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
-$DetailedDocumentsById = @{}
-
-foreach ($doctype in $passportalData.docTypes) {
->>>>>>> c05642d806775e28df04367a71183de628311dbb
     foreach ($client in $passportalData.Clients) {
         $page = 1
         while ($true) {
@@ -91,11 +64,7 @@ foreach ($doctype in $passportalData.docTypes) {
             if (-not $results -or -not $response.success -or "$results".ToLower() -eq 'null') {
                 $SourceDataIDX++
                 $completionPercentage = Get-PercentDone -current $SourceDataIDX -Total $SourceDataTotal
-<<<<<<< HEAD
                 Write-Progress -Activity "Fetching $doctype for $($client.decodedName)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
-=======
-                Write-Progress -Activity "Fetching $doctype for $($client.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
->>>>>>> c05642d806775e28df04367a71183de628311dbb
                 break
             }
 
@@ -127,7 +96,6 @@ foreach ($doctype in $passportalData.docTypes) {
             $page++
         }
     }
-<<<<<<< HEAD
 }} catch {
     Write-ErrorObjectsToFile -ErrorObject @{
         Error = $_
@@ -143,24 +111,6 @@ $passportalData.documents | ConvertTo-json -depth 88 | Out-File "export.json"
 ##
 #
 Set-IncrementedState -newState "Obtain data from Hudu Instance- $(Get-HuduBaseURL)"
-=======
-}
-
-if (-not $passportaldata.Documents -or $passportaldata.Documents.Count -lt 1){
-    Write-Host "Couldnt fetch any viable documents. Ensure Passportal API service is running and try again."
-    exit
-}
-foreach ($obj in $passportaldata.Documents){
-    Write-Host "$($obj.doctype) for $($obj.client): $(Write-InspectObject -object $obj.data)"
-}
-$passportalData.documents | ConvertTo-json -depth 88 | Out-File "export.json"
-
-
-### LOAD DESTDATA and determine import strategy
-##
-#
-Write-Host "obtaining data from Hudu!"
->>>>>>> c05642d806775e28df04367a71183de628311dbb
 $HuduData = @{
     Resources = @(
         @{name="companies"; request="Get-HuduCompanies"},
@@ -178,10 +128,6 @@ $HuduData = @{
     Data = @{}
     AssetLayoutNames = @{}
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> c05642d806775e28df04367a71183de628311dbb
 $resourceIDX=0
 foreach ($resource in $HuduData.Resources) {
     $resourceIDX=$resourceIDX+1
@@ -194,7 +140,6 @@ foreach ($resource in $HuduData.Resources) {
 $alwaysCreateCompanies=$false
 $companiesTable = @{}
 foreach ($huduCompany in $Hududata.Data.companies){
-<<<<<<< HEAD
     $runSummary.JobInfo.AttriutionOptions.Add(@{id=$huducompany.id; name="$($huducompany.Name)"; decodedName="$($huducompany.Name)"})
     $companiesTable[$huducompany.id]=$huducompany
 }
@@ -203,29 +148,17 @@ if ($Hududata.Data.companies.count -lt 1) {
     $alwaysCreateCompanies=$true
 } else {
     Set-PrintAndLog -message "Found $($Hududata.Data.companies.count) Companies to Match for In Hudu" -Color DarkCyan
-=======
-    $runSummary.JobInfo.AttriutionOptions.Add(@{Id=$huducompany.id; Name="$($huducompany.Name)"})
-    $companiesTable[$huducompany.id]=$huducompany
-}
-if ($Hududata.Data.companies.count -lt 1) {
-    Write-Host "Hudu doesnt have any companies yet- Opting to create companies instead of matching"
-    $alwaysCreateCompanies=$true
->>>>>>> c05642d806775e28df04367a71183de628311dbb
 }
 
 ### Transfer assets, companies, and layouts into hudu
 ##
 #
-<<<<<<< HEAD
 Set-IncrementedState -newState "Transfer assets, companies, and layouts into hudu"
-=======
->>>>>>> c05642d806775e28df04367a71183de628311dbb
 $TransferIDX=0
 $TransferredTotal = $passportalData.Clients.count
 foreach ($PPcompany in $PassportalData.Clients) {
     $TransferIDX = $SourceDataIDX+1
     $completionPercentage = Get-PercentDone -current $TransferIDX -Total $TransferredTotal
-<<<<<<< HEAD
     Write-Progress -Activity "Transferring items for $($PPcompany.decodedName)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
 
     # Set, Match, Create, or Skip company
@@ -302,50 +235,10 @@ foreach ($PPcompany in $PassportalData.Clients) {
                     During = "creating $($matchedLayout.name) asset for $($MatchedCompany.name)"
                 } -Name "AssetCreate-$($obj.data[0].label ?? "$doctype")"
             }
-=======
-    Write-Progress -Activity "Transferring items for $($PPcompany.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
-
-    # Set, Match, Create, or Skip company
-    $MatchedCompany=$(if ($true -eq $alwaysCreateCompanies) {@{Id= 0; Name="Create New"}} else {$(Select-ObjectFromList -objects $runSummary.JobInfo.AttriutionOptions -message "Which Company would you like to attribute PassPortal Company $($PPcompany.id)- $($PPcompany.name) to in Hudu?" -allowNull $false)})
-    if ($MatchedCompany.id -eq -1) {write-host "Skipping $($PPcompany.name) per user request."; continue}
-    if ($MatchedCompany.id -eq  0) {
-        write-host "Creating new Company, $($PPcompany.name)"
-        $MatchedCompany = New-HuduCompany -Name $PPcompany.name
-        $runSummary.JobInfo.AttriutionOptions.Add($matchedCompany)
-    }
-    Write-Host "Company set to $($MatchedCompany.name) for $($ppcompany.name)"
-
-    # Migrate all doctypes for company, if no doctypes for company, skip for now
-    foreach ($doctype in $passportalData.docTypes) {
-        $ObjectsForTransfer =  $passportaldata.Documents.data | Where-Object { $_.data.type -eq $doctype -and $_.client.id -eq $PPCompany.id}
-        if (-not $ObjectsForTransfer -or $ObjectsForTransfer.count -lt 1){write-host "Skipping doctype $doctype transfer for $($ppcompany.name). None present in export/dump"; continue}
-
-    # Match layout in hudu to doctype in Passportal. Create if not in Hudu
-        $layoutName = Set-Capitalized $doctype
-        $matchedLayout = $HuduData.Data.assetlayouts | Where-Object { $_.name -eq $layoutName }
-        if (-not $matchedLayout) {
-            Write-Host "Creating new layout for $layoutName"
-            $newLayout = New-HuduAssetLayout -name $layoutName -icon $($PassportalLayoutDefaults[$docType]).icon -color "#300797ff" -icon_color "#bed6a9ff" `
-                -include_passwords $true -include_photos $true -include_comments $true -include_files $true `
-                -fields $(Get-PassportalFieldMapForType -Type $doctype)
-            $HuduData.Data.assetlayouts += $newLayout.asset_layout
-            $matchedLayout = $newLayout.asset_layout
-        }
-    # Create new asset for each doc in type
-        foreach ($obj in $ObjectsForTransfer) {
-            $fields = $passportalData.documents.details | Where-Object { $_.ID -eq $Document.data.id }
-
-
-
-            New-HuduAsset -name "$($obj.data.label ?? $obj.data.name ?? $obj.data.title ?? "Unnamed $doctype")" `
-                -companyId $MatchedCompany.id -AssetLayoutId $matchedLayout.id `
-                -fields $(Build-HuduFieldsFromDocument -FieldMap $(Get-PassportalFieldMapForType -Type $doctype) -Document $obj)
->>>>>>> c05642d806775e28df04367a71183de628311dbb
         }
     }
 }
 
-<<<<<<< HEAD
 # Set-IncrementedState -newState "Import and match passwords from CSV data"
 # $passportalData.csvData = $passportalData.csvData ?? $(Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"}))
 # if ($null -eq $passportalData.csvData) {
@@ -364,22 +257,3 @@ Set-PrintAndLog -message  ""
 foreach ($var in $sensitiveVars) {
     Unset-Vars -varname $var
 }
-=======
-
-
-
-
-
-
-
-
-
-
-
-
-
-Write-Host "Unsetting vars before next run."
-# foreach ($var in $sensitiveVars) {
-#     Unset-Vars -varname $var
-# }
->>>>>>> c05642d806775e28df04367a71183de628311dbb
