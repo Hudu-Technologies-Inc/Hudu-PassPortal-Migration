@@ -6,6 +6,7 @@ $downloadsFolder=$(join-path "$workdir" "downloads")
 $allSitesfolder=$(join-path "$workdir" "sites")
 $tmpfolder=$(join-path "$workdir" "tmp")
 $ErroredItemsFolder=$(join-path "$logsFolder" "errored")
+$csvPath=$(join-path $workdir "exported-csvs")
 Write-Host "Hudu Max Docsize: $HUDU_MAX_DOCSIZE"
 $PPBaseURIs = @(
     @{APIBase="us-clover"
@@ -49,10 +50,12 @@ $RunSummary=@{
         SourceFilesAsAttachments = $true
     }
     JobInfo=@{
-        MigrationSource     = [PSCustomObject]@{}
+        MigrationSource     = [System.Collections.ArrayList]@()
         MigrationDest       = [PSCustomObject]@{}
-        sites               = [System.Collections.ArrayList]@()
-        pages               = [System.Collections.ArrayList]@()
+        AttriutionOptions   = [System.Collections.ArrayList]@(
+            @{Id=-1; Name="Skip (Don't Import)"}
+            @{Id= 0; Name="Create New"}
+        )
         sitescount          = 0
         pagescount          = 0
         LinksCreated        = 0
@@ -113,11 +116,11 @@ function Get-HuduModule {
 }
 function Get-HuduVersionCompatible {
     param (
-        [version]$RequiredHuduVersion = [version]"2.37.1",
+        [version]$RequiredHuduVersion = [version]"2.38.0",
         $DisallowedVersions = @([version]"2.37.0")
     )
 
-    Write-Host "Required Hudu version: $RequiredHuduVersion" -ForegroundColor Blue
+    Write-Host "Required Hudu version: $($RequiredHuduVersion.ToString())" -ForegroundColor Blue
     try {
         $HuduAppInfo = Get-HuduAppInfo
         $CurrentHuduVersion = [version]$HuduAppInfo.version
