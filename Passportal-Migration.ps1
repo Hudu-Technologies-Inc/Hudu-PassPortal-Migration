@@ -239,21 +239,21 @@ foreach ($PPcompany in $PassportalData.Clients) {
     }
 }
 
-Set-IncrementedState -newState "Import and match passwords from CSV data"
-$passportalData.csvData = $passportalData.csvData ?? $(Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"}))
-if ($null -eq $passportalData.csvData) {
-    Set-Prontandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
-}
+# Set-IncrementedState -newState "Import and match passwords from CSV data"
+# $passportalData.csvData = $passportalData.csvData ?? $(Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"}))
+# if ($null -eq $passportalData.csvData) {
+#     Set-Prontandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
+# }
 
 
 
-Set-IncrementedState -newState "Import and match websites from SSL data"
+# Set-IncrementedState -newState "Import and match websites from SSL data"
 
 
 
 Set-IncrementedState -newState "Set Layouts as active, Wrap-Up, and Unsetting $($sensitiveVars.count) sensitive vars"
 foreach ($layout in Get-HuduAssetLayouts) {Set-PrintAndLog -message "setting $($(Set-HuduAssetLayout -id $layout.id -Active $true).asset_layout.name) as active" -Color DarkMagenta }
 Set-PrintAndLog -message  ""
-# foreach ($var in $sensitiveVars) {
-#     Unset-Vars -varname $var
-# }
+foreach ($var in $sensitiveVars) {
+    Unset-Vars -varname $var
+}
