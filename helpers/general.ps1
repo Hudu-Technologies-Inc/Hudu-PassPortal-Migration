@@ -243,20 +243,7 @@ function Select-ObjectFromList($objects,$message,$allowNull = $false) {
         }
     }
 }
-function Get-YesNoResponse($message) {
-    do {
-        $response = Read-Host "$message (y/n)"
-        $response = if($null -ne $response) {$response.ToLower()} else {""}
-        if ($response -eq 'y' -or $response -eq 'yes') {
-            return $true
-        } elseif ($response -eq 'n' -or $response -eq 'no') {
-            return $false
-        } else {
-            Set-PrintAndLog -message "Invalid input. Please enter 'y' for Yes or 'n' for No."
-        }
-    }
-    while ($true)
-}
+
 
 function Get-ArticlePreviewBlock {
     param (
