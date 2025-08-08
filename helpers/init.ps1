@@ -1,10 +1,8 @@
 
 # Define and set up some paths
+$HUDU_MAX_DOCSIZE = $HUDU_MAX_DOCSIZE ?? 8000
 $logsFolder=$(join-path "$workdir" "logs")
 $logFile=$(join-path "$logsFolder" "PassPortalLog")
-$downloadsFolder=$(join-path "$workdir" "downloads")
-$allSitesfolder=$(join-path "$workdir" "sites")
-$tmpfolder=$(join-path "$workdir" "tmp")
 $ErroredItemsFolder=$(join-path "$logsFolder" "errored")
 $csvPath=$(join-path $workdir "exported-csvs")
 Write-Host "Hudu Max Docsize: $HUDU_MAX_DOCSIZE"
@@ -20,10 +18,10 @@ $PPBaseURIs = @(
     @{APIBase="au-clover"
     name="Australia"}
 )
-# foreach ($folder in @($logsFolder, $downloadsFolder, $tmpfolder, $allSitesfolder, $ErroredItemsFolder)) {
-#     if (!(Test-Path -Path "$folder")) { Set-PrintAndLog -message  "Making dir... $(New-Item "$folder" -ItemType Directory)" -Color DarkCyan }
-#         Set-PrintAndLog -message "Clearing $folder... $(Get-ChildItem -Path "$folder" -File -Recurse -Force | Remove-Item -Force)" -Color DarkCyan
-# }
+foreach ($folder in @($logsFolder, $ErroredItemsFolder)) {
+    if (!(Test-Path -Path "$folder")) { Set-PrintAndLog -message  "Making dir... $(New-Item "$folder" -ItemType Directory)" -Color DarkCyan }
+        Set-PrintAndLog -message "Clearing $folder... $(Get-ChildItem -Path "$folder" -File -Recurse -Force | Remove-Item -Force)" -Color DarkCyan
+}
 
 # Set up logging object
 $RunSummary=@{
