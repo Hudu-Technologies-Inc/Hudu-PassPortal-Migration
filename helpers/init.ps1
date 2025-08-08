@@ -44,29 +44,14 @@ $RunSummary=@{
         project_workdir     = $project_workdir
         StartedAt           = $(get-date)
         FinishedAt          = $null
-        RunDuration         = $null
-        PreviewLength       = 2500
-        LinkSourceArticles  = $true
-        SourceFilesAsAttachments = $true
     }
     JobInfo=@{
         MigrationSource     = [System.Collections.ArrayList]@()
         MigrationDest       = [PSCustomObject]@{}
         AttriutionOptions   = [System.Collections.ArrayList]@(
-            @{Id=-1; Name="Skip (Don't Import)"}
-            @{Id= 0; Name="Create New"}
+            @{id=-1; name="Skip (Don't Import)"; decodedName="Skip (Don't Import)"}
+            @{id= 0; name="Create New"; decodedName="Create New"}
         )
-        sitescount          = 0
-        pagescount          = 0
-        LinksCreated        = 0
-        LinksFound          = 0
-        LinksReplaced       = 0
-        ArticlesCreated     = 0
-        ArticlesSkipped     = 0
-        ArticlesErrored     = 0
-        AttachmentsFound    = 0
-        UploadsCreated      = 0
-        UploadsErrored      = 0
     }
     Errors                  = [System.Collections.ArrayList]@()
     Warnings                = [System.Collections.ArrayList]@()
