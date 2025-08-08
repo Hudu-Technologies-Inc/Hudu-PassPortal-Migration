@@ -40,10 +40,11 @@ $passportalData.Headers = $authResult.headers
 $passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get).results
 foreach ($client in $passportalData.clients) {$client | Add-Member -NotePropertyName decodedName -NotePropertyValue $(Get-HTTPDecodedString $client.name) -Force; Set-PrintAndLog -message  "found $($client.id)-  $($client.decodedName)" -Color DarkCyan}
 $passportalData.csvData = Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"})
+
+
 $SourceDataIDX = 0
 $SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
-
-foreach ($doctype in $passportalData.docTypes) {
+try {foreach ($doctype in $passportalData.docTypes) {
     foreach ($client in $passportalData.Clients) {
         $page = 1
         while ($true) {
@@ -95,6 +96,11 @@ foreach ($doctype in $passportalData.docTypes) {
             $page++
         }
     }
+}} catch {
+    Write-ErrorObjectsToFile -ErrorObject @{
+        Error = $_
+        During = "Fetch source data from Passportal"
+    } -name "DataFetch-$SourceDataIDX-$SourceDataTotal"
 }
 
 Set-PrintAndLog -message "$(if ((-not $passportaldata.Documents -or $passportaldata.Documents.Count -lt 1)) {"Couldnt fetch any viable documents. Ensure Passportal API service is running and try again."} else {"Fetched $($passportaldata.Documents.count) Documents"})" -Color DarkCyan
@@ -160,12 +166,22 @@ foreach ($PPcompany in $PassportalData.Clients) {
     if ($MatchedCompany.id -eq -1) {Set-PrintAndLog -message  "Skipping $($PPcompany.decodedName) per user request." -Color DarkCyan; continue}
     if ($MatchedCompany.id -eq  0) {
         Set-PrintAndLog -message  "Creating new Company, $($PPcompany.decodedName)" -Color DarkCyan
-        $MatchedCompany = New-HuduCompany -Name $PPcompany.decodedName
+        try {
+            $MatchedCompany = New-HuduCompany -Name $PPcompany.decodedName
+        } catch {
+            Write-ErrorObjectsToFile -ErrorObject @{
+                Error = $_
+                During = "creating company for $($ppcompany.decodedName) in hudu"
+            } -Name "CompanyCreate-$($ppcompany.decodedName ?? "na")"
+        }            
         Set-PrintAndLog -message "Created new company $($($MatchedCompany.id))"
         $runSummary.JobInfo.AttriutionOptions.Add($matchedCompany)
     }
-    Set-PrintAndLog -message  "Company set to $($MatchedCompany.name) for $($ppcompany.decodedName)" -Color DarkCyan
-
+    if ($null -eq $MatchedCompany) {
+        Set-PrintAndLog -message  "No Company matched or selected for $($PPcompany.decodedName), skipping" -Color DarkCyan; continue
+    } else {
+        Set-PrintAndLog -message  "Company set to $($MatchedCompany.name) for $($ppcompany.decodedName)" -Color DarkCyan
+    }
     # Migrate all doctypes for company, if no doctypes for company, skip for now
     foreach ($doctype in $passportalData.docTypes) {
         write-host "Starting doctype $doctype"
@@ -177,9 +193,16 @@ foreach ($PPcompany in $PassportalData.Clients) {
         $fieldMap = Get-PassportalFieldMapForType -Type $doctype
         if (-not $matchedLayout) {
             Set-PrintAndLog -message  "Creating new layout for $layoutName with fields $($($fieldMap | convertto-json -depth 66).ToString())" -Color DarkCyan
-            $newLayout = New-HuduAssetLayout -name $layoutName -icon $($PassportalLayoutDefaults[$docType]).icon -color "#300797ff" -icon_color "#bed6a9ff" `
-                -include_passwords $true -include_photos $true -include_comments $true -include_files $true `
-                -fields $fieldMap
+            try {
+                $newLayout = New-HuduAssetLayout -name $layoutName -icon $($PassportalLayoutDefaults[$docType]).icon -color "#300797ff" -icon_color "#bed6a9ff" `
+                    -include_passwords $true -include_photos $true -include_comments $true -include_files $true `
+                    -fields $fieldMap
+            } catch {
+                Write-ErrorObjectsToFile -ErrorObject @{
+                    Error = $_
+                    During = "creating $($matchedLayout.name) layout to use with  $($doctype)"
+                } -Name "LayoutCreate-$($layoutName ?? "$doctype")"
+            }                
             $HuduData.Data.assetlayouts += $newLayout.asset_layout
             $matchedLayout = $newLayout.asset_layout
         }
@@ -197,28 +220,32 @@ foreach ($PPcompany in $PassportalData.Clients) {
                                                   -layoutId $matchedLayout.id `
                                                   -companyId $MatchedCompany.id `
                                                   -fields $fields
-            Write-Host "New Asset $(Get-JsonString $newAsset)"
-
             $ppIndex = Get-NormalizedPassportalFields -ppFields $fields
-            Write-Host "ppIndex $(Get-JsonString $ppIndex)"
-
             $mappedValues = Set-PPToHuduFieldValues -FieldMap $fieldMap -PPIndex $ppIndex
-            Write-Host "mappedValues $(Get-JsonString $mappedValues)"
-
             $customFields = Build-HuduCustomFields -FieldMap $fieldMap -HuduValuesByLabel $mappedValues
-            Write-Host "customFields $(Get-JsonString $customFields)"
-
             if ($customFields -and $customFields.count -gt 0) {
                 $newAsset["fields"] = $customFields
             }
             Write-Host "creating asset $(Get-JsonString $newAsset)"
-
-            New-HuduAsset @newAsset
+            try {
+                New-HuduAsset @newAsset
+            } catch {
+                Write-ErrorObjectsToFile -ErrorObject @{
+                    Error = $_
+                    During = "creating $($matchedLayout.name) asset for $($MatchedCompany.name)"
+                } -Name "AssetCreate-$($obj.data[0].label ?? "$doctype")"
+            }
         }
     }
 }
 
 Set-IncrementedState -newState "Import and match passwords from CSV data"
+$passportalData.csvData = $passportalData.csvData ?? $(Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"}))
+if ($null -eq $passportalData.csvData) {
+    Set-Prontandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
+}
+
+
 
 Set-IncrementedState -newState "Import and match websites from SSL data"
 

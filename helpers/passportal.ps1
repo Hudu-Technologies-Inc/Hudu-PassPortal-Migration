@@ -94,7 +94,7 @@ function Get-CSVExportData {
             $csvData['vault'] = $csv
         }        
     }
-
+    return $csvData
 }
 
 $PassportalLayoutDefaults = @{
@@ -292,13 +292,7 @@ function Build-HuduFieldsFromDocument {
     $fieldValues['PassPortalID'] = $docId
     return $fieldValues
 }
-function Convert-ToSnakeCase {
-    param([Parameter(Mandatory)][string]$Text)
-    $t = $Text.Trim()
-    # collapse spaces/punctuation -> underscore, lower-case
-    $t = ($t -replace '[^A-Za-z0-9]+','_').Trim('_').ToLowerInvariant()
-    return $t
-}
+
 
 function Get-TopLevelFieldforAsset {
     param (
@@ -334,12 +328,7 @@ function Get-TopLevelFieldforAsset {
     return $props
 
 }
-function Convert-ToSnakeCase {
-    param([Parameter(Mandatory)][string]$Text)
-    $t = $Text.Trim()
-    $t = ($t -replace '[^A-Za-z0-9]+','_').Trim('_').ToLowerInvariant()
-    return $t
-}
+
 
 function Get-NormalizedPassportalFields {
     <#
