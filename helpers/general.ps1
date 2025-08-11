@@ -129,27 +129,6 @@ function Write-InspectObject {
     return $lines -join "`n"
 }
 
-function Export-DocPropertyJson {
-    param (
-        [Parameter(Mandatory)][PSCustomObject]$Doc,
-        [Parameter(Mandatory)][string]$Property,
-        [int]$Depth = 45
-    )
-
-    if (-not ($Doc.PSObject.Properties.Name -contains $Property)) {
-        throw "Property '$Property' does not exist on the provided document object."
-    }
-
-    $value = $Doc.$Property
-
-    $dir  = [System.IO.Path]::GetDirectoryName($Doc.LocalPath)
-    $base = [System.IO.Path]::GetFileNameWithoutExtension($Doc.LocalPath)
-    $outPath = [System.IO.Path]::Combine($dir, "$base-$($Property.ToLower()).json")
-
-    $value | ConvertTo-Json -Depth $Depth | Out-File -FilePath $outPath -Encoding UTF8
-
-    return $outPath
-}
 function Write-ErrorObjectsToFile {
     param (
         [Parameter(Mandatory)]
@@ -410,8 +389,6 @@ function Set-Capitalized {
     if ([string]::IsNullOrWhiteSpace($text)) { return $text }
     return $text.Substring(0,1).ToUpper() + $text.Substring(1)
 }
-
-
 function Get-JsonString {
     param (
         $object

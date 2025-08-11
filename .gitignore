@@ -12,3 +12,5 @@ logs\errored
 *export.json
 logs\PassPortalLog
 PassPortalLog
+logs/PassPortalLog*
+*/PassPortalLog*

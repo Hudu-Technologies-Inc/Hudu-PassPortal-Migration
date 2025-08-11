@@ -44,6 +44,7 @@ $RunSummary=@{
         project_workdir     = $project_workdir
         StartedAt           = $(get-date)
         FinishedAt          = $null
+        Duration            = $null
     }
     JobInfo=@{
         MigrationSource     = [System.Collections.ArrayList]@()

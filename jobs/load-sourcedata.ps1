@@ -31,6 +31,7 @@ try {foreach ($doctype in $passportalData.docTypes) {
 
             $details = @()
             foreach ($doc in $results) {
+
                 $docId = $doc.id
                 if (-not $docId) { continue }
                     $detail = $null
@@ -54,6 +55,7 @@ try {foreach ($doctype in $passportalData.docTypes) {
                 data        = $results
                 details     = $details
             }
+            $foundDocs = $foundDocs+1
             $page++
         }
     }
