@@ -1,22 +1,22 @@
 Starting Passportal Migration
-[2025-08-11 15:40:19] Checked Powershell Version... 
-[2025-08-11 15:40:19] Imported Hudu Module... 
-[2025-08-11 15:40:20] Checked Hudu Credentials... 
-[2025-08-11 15:40:20] Checked Hudu Version... True
-[2025-08-11 15:40:20] Authentication Result Successful
-[2025-08-11 15:40:20] found 41610794-  Diglett Excavation
-[2025-08-11 15:40:20] found 41609738-  Hudu Technologies
-[2025-08-11 15:40:20] found 41610798-  Matt's Museum of Marbles
-[2025-08-11 15:40:20] found 41610774-  Needy Nancy
-[2025-08-11 15:40:20] found 41610782-  Randy Randall's Random Cars
-[2025-08-11 15:40:20] found 41610790-  WorldWideWarbler Bird Sanctuary
-[2025-08-11 15:40:20] Checking .\exported-csvs folder for Passportal exports...
-[2025-08-11 15:40:20] Importing: clients.csv
-[2025-08-11 15:40:20] Importing: passwords.csv
-[2025-08-11 15:40:20] Importing: users.csv
-[2025-08-11 15:40:20] Importing: vault.csv
-[2025-08-11 15:40:43] Fetched 22 Documents
-[2025-08-11 15:40:43] asset for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:52:54] Checked Powershell Version... 
+[2025-08-11 17:52:55] Imported Hudu Module... 
+[2025-08-11 17:52:55] Checked Hudu Credentials... 
+[2025-08-11 17:52:56] Checked Hudu Version... True
+[2025-08-11 17:52:56] Authentication Result Successful
+[2025-08-11 17:52:56] found 41610794-  Diglett Excavation
+[2025-08-11 17:52:56] found 41609738-  Hudu Technologies
+[2025-08-11 17:52:56] found 41610798-  Matt's Museum of Marbles
+[2025-08-11 17:52:56] found 41610774-  Needy Nancy
+[2025-08-11 17:52:56] found 41610782-  Randy Randall's Random Cars
+[2025-08-11 17:52:56] found 41610790-  WorldWideWarbler Bird Sanctuary
+[2025-08-11 17:52:56] Checking .\exported-csvs folder for Passportal exports...
+[2025-08-11 17:52:56] Importing: clients.csv
+[2025-08-11 17:52:56] Importing: passwords.csv
+[2025-08-11 17:52:56] Importing: users.csv
+[2025-08-11 17:52:56] Importing: vault.csv
+[2025-08-11 17:53:17] Fetched 22 Documents
+[2025-08-11 17:53:17] asset for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182486,
   "organization_id": 27186,
@@ -31,7 +31,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:42:18Z"
 }
-[2025-08-11 15:40:43] active_directory for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] active_directory for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182314,
   "organization_id": 27186,
@@ -46,7 +46,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:07:35Z"
 }
-[2025-08-11 15:40:43] application for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] application for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 [
   {
     "id": 31182322,
@@ -63,7 +63,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:09:31Z"
   },
 ... (truncated)
-[2025-08-11 15:40:43] backup for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] backup for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182334,
   "organization_id": 27186,
@@ -78,7 +78,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:12:48Z"
 }
-[2025-08-11 15:40:43] email for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] email for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182458,
   "organization_id": 27186,
@@ -93,7 +93,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:36:15Z"
 }
-[2025-08-11 15:40:43] file_sharing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] file_sharing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182454,
   "organization_id": 27186,
@@ -108,7 +108,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:35:19Z"
 }
-[2025-08-11 15:40:43] contact for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] contact for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182406,
   "organization_id": 27186,
@@ -123,7 +123,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:26:18Z"
 }
-[2025-08-11 15:40:43] location for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] location for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182414,
   "organization_id": 27186,
@@ -138,7 +138,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:29:22Z"
 }
-[2025-08-11 15:40:43] internet for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] internet for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 [
   {
     "id": 31182450,
@@ -155,7 +155,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:34:32Z"
   },
 ... (truncated)
-[2025-08-11 15:40:43] lan for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] lan for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 [
   {
     "id": 31182434,
@@ -172,7 +172,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:32:53Z"
   },
 ... (truncated)
-[2025-08-11 15:40:43] printing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] printing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182358,
   "organization_id": 27186,
@@ -187,7 +187,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:16:46Z"
 }
-[2025-08-11 15:40:43] remote_access for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] remote_access for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182366,
   "organization_id": 27186,
@@ -202,7 +202,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:19:34Z"
 }
-[2025-08-11 15:40:43] vendor for @{id=41610794; name=Diglett Excavation; decodedName=Diglett Excavation}: # Type: System.Object[]
+[2025-08-11 17:53:17] vendor for @{id=41610794; name=Diglett Excavation; decodedName=Diglett Excavation}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -219,7 +219,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-11 15:40:43] vendor for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] vendor for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -236,7 +236,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-11 15:40:43] vendor for @{id=41610798; name=Matt&#039;s Museum of Marbles; decodedName=Matt's Museum of Marbles}: # Type: System.Object[]
+[2025-08-11 17:53:17] vendor for @{id=41610798; name=Matt&#039;s Museum of Marbles; decodedName=Matt's Museum of Marbles}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -253,7 +253,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-11 15:40:43] vendor for @{id=41610774; name=Needy Nancy; decodedName=Needy Nancy}: # Type: System.Object[]
+[2025-08-11 17:53:17] vendor for @{id=41610774; name=Needy Nancy; decodedName=Needy Nancy}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -270,7 +270,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-11 15:40:43] vendor for @{id=41610782; name=Randy Randall&#039;s Random Cars; decodedName=Randy Randall's Random Cars}: # Type: System.Object[]
+[2025-08-11 17:53:17] vendor for @{id=41610782; name=Randy Randall&#039;s Random Cars; decodedName=Randy Randall's Random Cars}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -287,7 +287,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-11 15:40:43] vendor for @{id=41610790; name=WorldWideWarbler Bird Sanctuary; decodedName=WorldWideWarbler Bird Sanctuary}: # Type: System.Object[]
+[2025-08-11 17:53:17] vendor for @{id=41610790; name=WorldWideWarbler Bird Sanctuary; decodedName=WorldWideWarbler Bird Sanctuary}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -304,7 +304,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-11 15:40:43] virtualization for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] virtualization for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182370,
   "organization_id": 27186,
@@ -319,7 +319,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:22:09Z"
 }
-[2025-08-11 15:40:43] voice for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] voice for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182374,
   "organization_id": 27186,
@@ -334,7 +334,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:22:53Z"
 }
-[2025-08-11 15:40:43] wireless for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] wireless for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182398,
   "organization_id": 27186,
@@ -349,7 +349,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:24:49Z"
 }
-[2025-08-11 15:40:43] licencing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-11 17:53:17] licencing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182410,
   "organization_id": 27186,
@@ -364,6 +364,6 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:27:57Z"
 }
-[2025-08-11 15:40:48] Found 5 Companies to Match for In Hudu
-[2025-08-11 15:40:53] Company set to Diglett Excavation for Diglett Excavation
-[2025-08-11 15:40:54] Company set to Diglett Excavation for Hudu Technologies
+[2025-08-11 17:53:21] Found 6 Companies to Match for In Hudu
+[2025-08-11 17:53:23] Company set to Diglett Excavation for Diglett Excavation
+[2025-08-11 17:53:24] Company set to Diglett Excavation for Hudu Technologies

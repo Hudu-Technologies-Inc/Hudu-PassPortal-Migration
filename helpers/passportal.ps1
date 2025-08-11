@@ -129,34 +129,54 @@ function Get-PassportalFieldMapForType {
     $fieldMap = @{
         asset = @(
             @{ label="Asset Name"; field_type="Text" },
+            @{ label="Assigned User"; field_type="Text" },
+            @{ label="Purchased By"; field_type="Text" },
             @{ label="Model"; field_type="Text" },
             @{ label="Serial Number"; field_type="Text" },
             @{ label="Purchase Date"; field_type="Date" },
+            @{ label="Type"; field_type="Text" },
+            @{ label="Asset Tag"; field_type="Text" },
+            @{ label="Hostname"; field_type="Text" },
+            @{ label="Platform"; field_type="Text" },
+            @{ label="Primary IP"; field_type="Text" },
+            @{ label="Hostname"; field_type="Text" },
+            @{ label="Operating System"; field_type="Text" },
+            @{ label="Operating System Notes"; field_type="RichText" },
             @{ label="Notes"; field_type="RichText" }
         )
         active_directory = @(
-            @{ label="Domain Name"; field_type="Text" },
-            @{ label="Admin User"; field_type="Text" },
-            @{ label="Admin Password"; field_type="Password" },
+            @{ label="AD Full Name"; field_type="Text" },
+            @{ label="AD Short Name"; field_type="Text" },
+            @{ label="AD Level"; field_type="Text" },
+            @{ label="Directory Services Restore Mode Password"; field_type="Password" },
             @{ label="Domain Controller IP"; field_type="Text" }
         )
         application = @(
-            @{ label="App Name"; field_type="Text" },
+            @{ label="Application Name"; field_type="Text" },
             @{ label="License Key"; field_type="Text" },
-            @{ label="Publisher"; field_type="Text" },
-            @{ label="Install Date"; field_type="Date" }
+            @{ label="Category"; field_type="Text" },
+            @{ label="Version"; field_type="Text" }
+            @{ label="NOTES"; field_type="RichText" }
         )
         backup = @(
+            @{ label="Backup Technology"; field_type="Text" },
             @{ label="Backup Type"; field_type="Text" },
-            @{ label="Software Used"; field_type="Text" },
-            @{ label="Schedule"; field_type="Text" },
-            @{ label="Last Successful Backup"; field_type="Date" }
+            @{ label="Backup Description"; field_type="Text" },
+            @{ label="Backup Interval"; field_type="Text" },
+            @{ label="Backup Window"; field_type="Text" },
+            @{ label="Retention Policy"; field_type="Text" },
+            @{ label="Notes"; field_type="RichText" },
+            @{ label="Last Successful Backup"; field_type="Date" },
+            @{ label="Next Test Restore Date"; field_type="Date" }
         )
         email = @(
             @{ label="Email Address"; field_type="Text" },
-            @{ label="Password"; field_type="Password" },
-            @{ label="IMAP Server"; field_type="Text" },
-            @{ label="SMTP Server"; field_type="Text" }
+            @{ label="Email Type"; field_type="Password" },
+            @{ label="Domain(s)"; field_type="Text" },
+            @{ label="Email Servers"; field_type="Text" },
+            @{ label="WebMail URL"; field_type="Text" },
+            @{ label="Inbound Delivery"; field_type="Text" },
+            @{ label="Notes"; field_type="RichText" }
         )
         folders = @(
             @{ label="Folder Name"; field_type="Text" },
@@ -164,19 +184,32 @@ function Get-PassportalFieldMapForType {
             @{ label="Permissions"; field_type="RichText" }
         )
         file_sharing = @(
-            @{ label="Platform"; field_type="Text" },
-            @{ label="Link"; field_type="Text" },
+            @{ label="Share Name"; field_type="Text" },
+            @{ label="Share Description"; field_type="Text" },
+            @{ label="File Servers"; field_type="Text" },
+            @{ label="Share UNC Path"; field_type="Text" },
+            @{ label="Mapped Drive"; field_type="Text" },
+            @{ label="File Share Permissions"; field_type="Text" },
             @{ label="User Accounts"; field_type="RichText" }
         )
         contact = @(
-            @{ label="Full Name"; field_type="Text" },
-            @{ label="Email"; field_type="Text" },
-            @{ label="Phone"; field_type="Text" },
-            @{ label="Role"; field_type="Text" }
+            @{ label="Contact Type"; field_type="Text" },
+            @{ label="Primary Contact"; field_type="Text" },
+            @{ label="Job Title"; field_type="Text" },
+            @{ label="First Name"; field_type="Text" },
+            @{ label="Last Name"; field_type="Text" },
+            @{ label="Phone"; field_type="Phone" },
+            @{ label="Notes"; field_type="RichText" },
+            @{ label="Email"; field_type="Text" }
         )
         location = @(
-            @{ label="Location Name"; field_type="Text" },
-            @{ label="Address"; field_type="RichText" },
+            @{ label="Name"; field_type="Text" },
+            @{ label="Address 1"; field_type="Text" },
+            @{ label="Address 2"; field_type="Text" },
+            @{ label="City"; field_type="Text" },
+            @{ label="Country"; field_type="Text" },
+            @{ label="State"; field_type="RichText" },
+            @{ label="Fax"; field_type="Text" },
             @{ label="Phone"; field_type="Text" }
         )
         internet = @(
@@ -191,21 +224,23 @@ function Get-PassportalFieldMapForType {
             @{ label="Port Number"; field_type="Text" }
         )
         printing = @(
-            @{ label="Printer Name"; field_type="Text" },
-            @{ label="IP Address"; field_type="Text" },
-            @{ label="Model"; field_type="Text" },
+            @{ label="Connection Type"; field_type="Text" },
+            @{ label="Print Drivers Path"; field_type="Text" },
+            @{ label="Notes"; field_type="RichText" },
             @{ label="Location"; field_type="Text" }
         )
         remote_access = @(
-            @{ label="Tool"; field_type="Text" },
-            @{ label="Host"; field_type="Text" },
-            @{ label="Username"; field_type="Text" },
+            @{ label="Site"; field_type="Text" },
+            @{ label="Client VPN URL"; field_type="Text" },
+            @{ label="Client VPN Installer"; field_type="Text" },
+            @{ label="Remote Desktop"; field_type="Text" },
+            @{ label="Webmail"; field_type="Text" },
             @{ label="Password"; field_type="Password" }
         )
         vendor = @(
-            @{ label="Vendor Name"; field_type="Text" },
-            @{ label="Account Rep"; field_type="Text" },
-            @{ label="Phone"; field_type="Text" },
+            @{ label="Vendor Website"; field_type="Text" },
+            @{ label="Vendor Support URL"; field_type="Text" },
+            @{ label="Support Phone Number"; field_type="Text" },
             @{ label="Support Email"; field_type="Text" }
         )
         virtualization = @(
@@ -332,41 +367,39 @@ function Get-TopLevelFieldforAsset {
 
 
 function Get-NormalizedPassportalFields {
-    <#
-      Input: $ppFields = the PSCustomObject at details[0].Fields
-      Output: hashtable with:
-        - original Passportal keys (e.g. "backup_type") → coerced value
-        - also index by the human label when available (e.g. "Backup Type") → same value
-    #>
+
     param([Parameter(Mandatory)] $ppFields,
                             [array]$fieldMap,
                             [int]$passportalId
     )
     $fieldbuilder = @()
-    $fieldMapkeys = @()
+
     # PSCustomObject -> hashtable
-    $h = @{}
     foreach ($field in $fieldMap) {
-        $fieldMapkeys+=$field.label
-    }
-    $ppFields.PSObject.Properties | ForEach-Object {
-        $v = $_.Value
-        if ($null -eq $v -or $null -eq $v.name -or $null -eq $v.value -or $null -eq $v.value.text) { Write-Host "sorce field from PassPortal is null for Hudu custom field"  continue }
-        $extracted = $_.Value.value.text
-        write-host "extracted $extracted for $($v.name)"
-       
-        $presentInfields = $($fieldMapkeys -contains $_.Value.name)
+        $label+=$field.label
+        $matchedValue=$null
+        $labelVariants = $(Get-StringVariants -InputString $label)
+        Write-Host "Searching for label match $label in Passportal Fields"
+        $ppFields.PSObject.Properties | ForEach-Object {
+            $passportalLabel = $v.name ?? $(Set-Capitalized $_.Name )
+            $extractedvalue = $_.Value.value.text
+            if ($null -eq $extractedvalue){continue}
 
-        $fieldbuilder += @{
-            $v.name=$extracted
+            foreach ($passportalVariant in  $(Get-StringVariants -InputString $passportalLabel)){
+                if ($labelVariants -contains $passportalVariant) {
+                    $matchedValue = $extractedvalue
+                }
+            }
+            if ($null -ne $matchedValue){
+                $fieldbuilder+@{$label=$matchedValue}
+                Write-Host "Matched source field KV pair - $label with value $matchedValue "
+            } else {
+                Write-Host "Couldnt match source field KV pair - $passportalLabel / $extractedvalue to Hudu Assetlayout $label "
+            }
         }
-
     }
-    if ($null -ne $passportalId) {
-        $fieldbuilder+=@{"PassPortalID" = $passportalId}
-    }
-
     return $fieldbuilder
+
 }
 
 function Coerce-ForHudu {
