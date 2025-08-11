@@ -44,7 +44,6 @@ try {foreach ($doctype in $passportalData.docTypes) {
                         })}
 
                     $Details+=$detail
-                    $foundDocs = $foundDocs+1
                 }
             
             $passportalData.Documents += [pscustomobject]@{
@@ -56,6 +55,7 @@ try {foreach ($doctype in $passportalData.docTypes) {
                 data        = $results
                 details     = $details
             }
+            $foundDocs = $foundDocs+1
             $page++
         }
     }
