@@ -220,13 +220,12 @@ foreach ($PPcompany in $PassportalData.Clients) {
                                                   -layoutId $matchedLayout.id `
                                                   -companyId $MatchedCompany.id `
                                                   -fields $fields
-            $ppIndex = Get-NormalizedPassportalFields -ppFields $fields
-            $mappedValues = Set-PPToHuduFieldValues -FieldMap $fieldMap -PPIndex $ppIndex
-            $customFields = Build-HuduCustomFields -FieldMap $fieldMap -HuduValuesByLabel $mappedValues
-            if ($customFields -and $customFields.count -gt 0) {
-                $newAsset["fields"] = $customFields
+            $customFields = Get-NormalizedPassportalFields -ppFields $fields -fieldMap $fieldMap -passportalId $data.id
+            if ($customFields -and $customFields.count -gt 0){
+                $newAsset["Fields"]=$customFields
             }
-            Write-Host "creating asset $(Get-JsonString $newAsset)"
+
+
             try {
                 New-HuduAsset @newAsset
             } catch {

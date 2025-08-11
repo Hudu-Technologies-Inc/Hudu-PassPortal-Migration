@@ -338,56 +338,35 @@ function Get-NormalizedPassportalFields {
         - original Passportal keys (e.g. "backup_type") → coerced value
         - also index by the human label when available (e.g. "Backup Type") → same value
     #>
-    param([Parameter(Mandatory)] $ppFields)
-
+    param([Parameter(Mandatory)] $ppFields,
+                            [array]$fieldMap,
+                            [int]$passportalId
+    )
+    $fieldbuilder = @()
+    $fieldMapkeys = @()
     # PSCustomObject -> hashtable
     $h = @{}
+    foreach ($field in $fieldMap) {
+        $fieldMapkeys+=$field.label
+    }
     $ppFields.PSObject.Properties | ForEach-Object {
-        $k = $_.Name
         $v = $_.Value
+        if ($null -eq $v -or $null -eq $v.value -or $null -eq $v.value.text) { Write-Host "sorce field from PassPortal is null for Hudu custom field"  continue }
+        $extracted = $_.Value.value.text
+        write-host "extracted $extracted for $($v.name)"
+       
+        $presentInfields = $($fieldMapkeys -contains $_.Value.name)
 
-        if ($null -eq $v) { return }
-
-        # extract displayed text when nested
-        $val =
-            if ($v -is [System.Collections.IDictionary]) {
-                if ($v.ContainsKey('value')) {
-                    $valObj = $v['value']
-                    if ($valObj -is [System.Collections.IDictionary] -and $valObj.ContainsKey('text')) {
-                        $valObj['text']
-                    } else {
-                        $valObj
-                    }
-                } elseif ($v.ContainsKey('attribute')) {
-                    # attribute often an array of objects; pull text(s)
-                    $attrs = $v['attribute']
-                    if ($attrs -is [System.Collections.IEnumerable]) {
-                        @($attrs | ForEach-Object {
-                            if ($_ -is [System.Collections.IDictionary] -and $_.ContainsKey('text')) { $_['text'] } else { $_ }
-                        }) | Where-Object { $_ -ne $null -and $_ -ne '' }
-                    } else {
-                        $v
-                    }
-                } else {
-                    $v
-                }
-            } else {
-                $v
-            }
-
-        # index by original key
-        $h[$k] = $val
-
-        # also index by human label if present (e.g. Backup Type)
-        if ($v -is [System.Collections.IDictionary] -and $v.ContainsKey('name') -and $v['name']) {
-            $label = [string]$v['name']
-            $h[$label] = $val
-            # and by snake_case label for convenience
-            $h[(Convert-ToSnakeCase $label)] = $val
+        $fieldbuilder += @{
+            $v.name=$extracted
         }
+
+    }
+    if ($null -ne $passportalId) {
+        $fieldbuilder+=@{"PassPortalID" = $passportalId}
     }
 
-    return $h
+    return $fieldbuilder
 }
 
 function Coerce-ForHudu {
@@ -516,40 +495,4 @@ function Get-PassportalValue {
 
     # Primitives
     return $Node
-}
-
-
-function Build-HuduCustomFields {
-    param(
-        [Parameter(Mandatory)][array]$FieldMap,
-        [Parameter(Mandatory)][hashtable]$HuduValuesByLabel
-    )
-
-    $list = New-Object System.Collections.Generic.List[hashtable]
-
-    foreach ($f in $FieldMap) {
-        $label = $f.label
-        $key   = if ($f.PSObject.Properties['key'] -and $f.key) { 
-                     $f.key 
-                 } else { 
-                     Convert-ToSnakeCase $label 
-                 }
-
-        if ($HuduValuesByLabel.ContainsKey($label)) {
-            $raw = $HuduValuesByLabel[$label]
-            $value = $raw.value
-            $extractedext = $value.text ?? $null
-
-            if ($null -ne $extractedext -and ($extractedext -ne '' -or $extractedext -isnot [string])) {
-                $list.Add(@{ $key = $extractedext })
-            }
-        }
-    }
-    foreach ($val in $list){
-        $val
-
-    }
-
-
-    return @($list)
 }
