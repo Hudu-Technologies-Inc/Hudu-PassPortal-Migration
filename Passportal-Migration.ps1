@@ -15,10 +15,12 @@ $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $fal
 $passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
 
 $MatchedCompanies = @()
-$CreatedCompanies = 
+$CreatedCompanies = @()
+$CreatedLayouts = @()
 $CreatedAssets = @()
 $CreatedPasswords = @()
 $CreatedFolders = @()
+$foundDocs = 0
 
 ### SETUP
 ##
@@ -69,6 +71,10 @@ foreach ($layout in Get-HuduAssetLayouts) {Set-PrintAndLog -message "setting $($
 Set-IncrementedState -newState "Import and match passwords from CSV data"
 . .\jobs\transfer-passwords.ps1
 
+Set-IncrementedState -newState "Complete"
+
+Set-IncrementedState -newState "Calculate and Relay Results"
+. .\jobs\relay-results.ps1
 
 # Set-IncrementedState -newState "Import and match websites from SSL data"
 Set-IncrementedState -newState "Wrap-Up, and Unsetting $($sensitiveVars.count) sensitive vars"
@@ -76,3 +82,4 @@ foreach ($var in $sensitiveVars) {
     Set-PrintAndLog -message  "Unset Sensitive Var $var"
     Unset-Vars -varname $var
 }
+

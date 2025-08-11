@@ -53,6 +53,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
                 } -Name "LayoutCreate-$($layoutName ?? "$doctype")"
             }                
             $HuduData.Data.assetlayouts += $newLayout.asset_layout
+            $CreatedLayouts += $newLayout.asset_layout
             $matchedLayout = $newLayout.asset_layout
         }
         

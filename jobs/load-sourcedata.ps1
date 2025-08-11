@@ -31,6 +31,7 @@ try {foreach ($doctype in $passportalData.docTypes) {
 
             $details = @()
             foreach ($doc in $results) {
+
                 $docId = $doc.id
                 if (-not $docId) { continue }
                     $detail = $null
@@ -43,6 +44,7 @@ try {foreach ($doctype in $passportalData.docTypes) {
                         })}
 
                     $Details+=$detail
+                    $foundDocs = $foundDocs+1
                 }
             
             $passportalData.Documents += [pscustomobject]@{
