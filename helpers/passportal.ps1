@@ -366,41 +366,41 @@ function Get-TopLevelFieldforAsset {
 }
 
 
-function Get-NormalizedPassportalFields {
+# function Get-NormalizedPassportalFields {
 
-    param([Parameter(Mandatory)] $ppFields,
-                            [array]$fieldMap,
-                            [int]$passportalId
-    )
-    $fieldbuilder = @()
+#     param([Parameter(Mandatory)] $ppFields,
+#                             [array]$fieldMap,
+#                             [int]$passportalId
+#     )
+#     $fieldbuilder = @()
 
-    # PSCustomObject -> hashtable
-    foreach ($field in $fieldMap) {
-        $label+=$field.label
-        $matchedValue=$null
-        $labelVariants = $(Get-StringVariants -InputString $label)
-        Write-Host "Searching for label match $label in Passportal Fields"
-        $ppFields.PSObject.Properties | ForEach-Object {
-            $passportalLabel = $v.name ?? $(Set-Capitalized $_.Name )
-            $extractedvalue = $_.Value.value.text
-            if ($null -eq $extractedvalue){continue}
+#     # PSCustomObject -> hashtable
+#     foreach ($field in $fieldMap) {
+#         $label+=$field.label
+#         $matchedValue=$null
+#         $labelVariants = $(Get-StringVariants -InputString $label)
+#         Write-Host "Searching for label match $label in Passportal Fields"
+#         $ppFields.PSObject.Properties | ForEach-Object {
+#             $passportalLabel = $v.name ?? $(Set-Capitalized $_.Name )
+#             $extractedvalue = $_.Value.value.text
+#             if ($null -eq $extractedvalue){continue}
 
-            foreach ($passportalVariant in  $(Get-StringVariants -InputString $passportalLabel)){
-                if ($labelVariants -contains $passportalVariant) {
-                    $matchedValue = $extractedvalue
-                }
-            }
-            if ($null -ne $matchedValue){
-                $fieldbuilder+@{$label=$matchedValue}
-                Write-Host "Matched source field KV pair - $label with value $matchedValue "
-            } else {
-                Write-Host "Couldnt match source field KV pair - $passportalLabel / $extractedvalue to Hudu Assetlayout $label "
-            }
-        }
-    }
-    return $fieldbuilder
+#             foreach ($passportalVariant in  $(Get-StringVariants -InputString $passportalLabel)){
+#                 if ($labelVariants -contains $passportalVariant) {
+#                     $matchedValue = $extractedvalue
+#                 }
+#             }
+#             if ($null -ne $matchedValue){
+#                 $fieldbuilder+@{$label=$matchedValue}
+#                 Write-Host "Matched source field KV pair - $label with value $matchedValue "
+#             } else {
+#                 Write-Host "Couldnt match source field KV pair - $passportalLabel / $extractedvalue to Hudu Assetlayout $label "
+#             }
+#         }
+#     }
+#     return $fieldbuilder
 
-}
+# }
 
 function Coerce-ForHudu {
     param(
@@ -528,4 +528,86 @@ function Get-PassportalValue {
 
     # Primitives
     return $Node
+}
+
+
+function Resolve-PPValue {
+    param([Parameter(Mandatory)]$Node)
+
+    if ($null -eq $Node) { return $null }
+
+    # handle Passportal wrappers:
+    # Prefer resolvedObject.value
+    if ($Node.PSObject.Properties['resolvedObject']) {
+        $ro = $Node.resolvedObject
+        if ($ro -and $ro.PSObject.Properties['value']) {
+            return (Resolve-PPValue $ro.value)
+        }
+    }
+
+    # value.text / value.id / value (primitive)
+    if ($Node.PSObject.Properties['value']) {
+        $v = $Node.value
+        if ($v -is [psobject] -or $v -is [hashtable]) {
+            if ($v.PSObject.Properties['text'] -and $v.text) { return $v.text }
+            if ($v.PSObject.Properties['name'] -and $v.name) { return $v.name }
+            if ($v.PSObject.Properties['id']   -and $v.id)   { return $v.id }
+        }
+        return $v
+    }
+
+    # fallback text/name
+    if ($Node.PSObject.Properties['text']) { return $Node.text }
+    if ($Node.PSObject.Properties['name']) { return $Node.name }
+
+    return $Node
+}
+
+function Get-NormalizedPassportalFields {
+    param(
+        [Parameter(Mandatory)] $ppFields,   # hashtable/psobject: Passportal .Fields bag
+        [Parameter(Mandatory)][array]$fieldMap, # Hudu layout fields (with .label)
+        [int]$passportalId
+    )
+
+    # 1) Build a fast lookup: variant (lower) -> property (Passportal field object)
+    $variantToProp = @{}
+    foreach ($prop in $ppFields.PSObject.Properties) {
+        # Passportal keeps both the key name and a 'name' inside the value; prefer inner .name if present
+        $ppLabel = if ($prop.Value -and $prop.Value.PSObject.Properties['name']) { $prop.Value.name } else { $prop.Name }
+        foreach ($v in (Get-StringVariants $ppLabel)) {
+            $k = $v.ToLower()
+            if (-not $variantToProp.ContainsKey($k)) { $variantToProp[$k] = $prop }  # first match wins
+        }
+    }
+
+    # 2) For each Hudu field label, try to match a PP field via variants and extract value
+    $result = @{}
+    foreach ($field in $fieldMap) {
+        $label = $field.label
+        if (-not $label) { continue }
+
+        $matched = $null
+        foreach ($candidate in (Get-StringVariants $label)) {
+            $key = $candidate.ToLower()
+            if ($variantToProp.ContainsKey($key)) { $matched = $variantToProp[$key]; break }
+        }
+
+        if ($matched) {
+            $val = Resolve-PPValue $matched.Value
+            if ($null -ne $val -and "$val" -ne '') {
+                $result[$label] = $val
+                # Write-Host "Matched '$label' → '$($matched.Name)' = '$val'"
+            } else {
+                # Write-Host "Matched '$label' but value empty for PP key '$($matched.Name)'"
+            }
+        } else {
+            # Write-Host "No PP match for Hudu label '$label' (PP doc id $passportalId)"
+        }
+    }
+
+    # Always handy to include the source id
+    if ($passportalId) { $result['PassPortalID'] = $passportalId }
+
+    return $result
 }
