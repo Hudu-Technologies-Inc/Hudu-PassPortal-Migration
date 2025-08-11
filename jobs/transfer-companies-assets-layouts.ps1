@@ -12,6 +12,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
         Set-PrintAndLog -message  "Creating new Company, $($PPcompany.decodedName)" -Color DarkCyan
         try {
             $MatchedCompany = $(New-HuduCompany -Name $PPcompany.decodedName).company
+            $CreatedCompanies += $MatchedCompany
         } catch {
             Write-ErrorObjectsToFile -ErrorObject @{
                 Error = $_
@@ -30,6 +31,12 @@ foreach ($PPcompany in $PassportalData.Clients) {
     # Migrate all doctypes for company, if no doctypes for company, skip for now
     foreach ($doctype in $passportalData.docTypes) {
         write-host "Starting doctype $doctype"
+        if ($doctype -eq "folders") {
+            Write-Host "Folders"
+
+        }
+
+
         
         $ObjectsForTransfer = $passportaldata.Documents  | where-object {$_.data.type -eq $doctype -and $($_.data.client_id -eq $PPcompany.id -or $_.data.clientName -eq $PPcompany.decodedName)}
         # Match layout in hudu to doctype in Passportal. Create if not in Hudu

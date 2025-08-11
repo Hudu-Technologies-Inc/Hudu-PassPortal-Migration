@@ -15,8 +15,10 @@ $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $fal
 $passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
 
 $MatchedCompanies = @()
+$CreatedCompanies = 
 $CreatedAssets = @()
 $CreatedPasswords = @()
+$CreatedFolders = @()
 
 ### SETUP
 ##
@@ -69,9 +71,6 @@ Set-IncrementedState -newState "Import and match passwords from CSV data"
 
 
 # Set-IncrementedState -newState "Import and match websites from SSL data"
-
-
-
 Set-IncrementedState -newState "Wrap-Up, and Unsetting $($sensitiveVars.count) sensitive vars"
 foreach ($var in $sensitiveVars) {
     Set-PrintAndLog -message  "Unset Sensitive Var $var"
