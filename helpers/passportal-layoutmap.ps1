@@ -61,9 +61,9 @@ function Get-PassportalFieldMapForType {
             @{ label="Title"; field_type="Text" },
             @{ label="License Key"; field_type="Text" },
             @{ label="Category"; field_type="Text" },
-            @{ label="Version"; field_type="Text" }
-            @{ label="Attachment Paths"; field_type="Text" }
-            @{ label="Application Owner"; field_type="Text" }            
+            @{ label="Version"; field_type="Text" },
+            @{ label="Attachment Paths"; field_type="Text" },
+            @{ label="Application Owner"; field_type="Text" },
             @{ label="NOTES"; field_type="RichText" }
         )
         backup = @(
@@ -126,25 +126,25 @@ function Get-PassportalFieldMapForType {
         internet = @(
             @{ label="Internet Service Provider"; field_type="Text" },
             @{ label="Link Type"; field_type="Text" },
-            @{ label="Account Number"; field_type="Text" },            
-            @{ label="Download Speed (Mbps)"; field_type="Text" },            
-            @{ label="Upload Speed (Mbps)"; field_type="Text" },            
-            @{ label="SMTP Smarthost"; field_type="Text" },            
+            @{ label="Account Number"; field_type="Text" },
+            @{ label="Download Speed (Mbps)"; field_type="Text" },
+            @{ label="Upload Speed (Mbps)"; field_type="Text" },
+            @{ label="SMTP Smarthost"; field_type="Text" },
             @{ label="Subnet Mask"; field_type="Text" },            
-            @{ label="Gateway(S)"; field_type="Text" },            
-            @{ label="DNS Servers"; field_type="Text" },            
-            @{ label="Gateway(S)"; field_type="Text" },            
+            @{ label="Gateway(S)"; field_type="Text" },
+            @{ label="DNS Servers"; field_type="Text" },
+            @{ label="Gateway(S)"; field_type="Text" },
             @{ label="Static IPs"; field_type="RichText" }
         )
         lan = @(
             @{ label="Device Name"; field_type="Text" },
             @{ label="IP Address"; field_type="Text" },
             @{ label="MAC Address"; field_type="Text" },
-            @{ label="Port Number"; field_type="Text" }
+            @{ label="Port Number"; field_type="Text" },
             @{ label="Subnet Mask"; field_type="Text" },            
             @{ label="Gateway(S)"; field_type="Text" },            
             @{ label="DNS Servers"; field_type="Text" },            
-            @{ label="Gateway(S)"; field_type="Text" }           
+            @{ label="Gateway(S)"; field_type="Text" }         
         )
         printing = @(
             @{ label="Connection Type"; field_type="Text" },
@@ -178,9 +178,9 @@ function Get-PassportalFieldMapForType {
         voice = @(
             @{ label="Phone System"; field_type="Text" },
             @{ label="SIP Provider"; field_type="Text" },
-            @{ label="Main Number"; field_type="Text" }
-            @{ label="Phone System Type"; field_type="Text" }
-            @{ label="DHCP Options"; field_type="Text" }
+            @{ label="Main Number"; field_type="Text" },
+            @{ label="Phone System Type"; field_type="Text" },
+            @{ label="DHCP Options"; field_type="Text" },
             @{ label="Phone Support Vendor"; field_type="Text" }
         )
         wireless = @(
