@@ -10,3 +10,5 @@ logs\*
 logs\errored\*
 logs\errored
 *export.json
+logs\PassPortalLog
+PassPortalLog

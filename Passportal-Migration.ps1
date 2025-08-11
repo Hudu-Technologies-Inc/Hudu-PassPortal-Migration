@@ -223,6 +223,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
             $customFields = Get-NormalizedPassportalFields -ppFields $fields -fieldMap $fieldMap -passportalId $data.id
             if ($customFields -and $customFields.count -gt 0){
                 $newAsset["Fields"]=$customFields
+                Write-Host "$(Get-JsonString $customFields)"
             }
 
 
