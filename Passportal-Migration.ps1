@@ -154,6 +154,8 @@ if ($Hududata.Data.companies.count -lt 1) {
 ##
 #
 Set-IncrementedState -newState "Transfer assets, companies, and layouts into hudu"
+$MatchedCompanies = @()
+$CreatedAssets = @()
 $TransferIDX=0
 $TransferredTotal = $passportalData.Clients.count
 foreach ($PPcompany in $PassportalData.Clients) {
@@ -181,6 +183,10 @@ foreach ($PPcompany in $PassportalData.Clients) {
         Set-PrintAndLog -message  "No Company matched or selected for $($PPcompany.decodedName), skipping" -Color DarkCyan; continue
     } else {
         Set-PrintAndLog -message  "Company set to $($MatchedCompany.name) for $($ppcompany.decodedName)" -Color DarkCyan
+        $MatchedCompanies+=@{
+            PPcompany=$ppcompany
+            HuduCompany=$MatchedCompany
+        }
     }
     # Migrate all doctypes for company, if no doctypes for company, skip for now
     foreach ($doctype in $passportalData.docTypes) {
@@ -228,7 +234,14 @@ foreach ($PPcompany in $PassportalData.Clients) {
 
 
             try {
-                New-HuduAsset @newAsset
+                $createdasset=$(New-HuduAsset @newAsset)
+                if ($null -ne $createdasset){
+                    $CreatedAssets += @{
+                        HuduAsset = $createdasset
+                        PPasset   = @{Data = $data; Fields = $fields}
+                        MatchedLayout = $matchedLayout
+                    }
+                } 
             } catch {
                 Write-ErrorObjectsToFile -ErrorObject @{
                     Error = $_
@@ -239,11 +252,22 @@ foreach ($PPcompany in $PassportalData.Clients) {
     }
 }
 
-# Set-IncrementedState -newState "Import and match passwords from CSV data"
-# $passportalData.csvData = $passportalData.csvData ?? $(Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"}))
-# if ($null -eq $passportalData.csvData) {
-#     Set-Prontandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
-# }
+Set-IncrementedState -newState "Import and match passwords from CSV data"
+$passportalData.csvData = $passportalData.csvData ?? $(Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"}))
+if ($null -eq $passportalData.csvData) {
+    Set-Prontandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
+} else { write-host "CSV data loaded!"}
+$PasswordIDX=0
+foreach ($password in $passportalData.csvData.passwords) {
+    $newCredential   = $passportalData.csvData.passwords[$PasswordIDX]
+    Write-Host "Starting $($newCredential.Credential) for $($newCredential.'Client Name')"
+    $MatchedCompany = $($MatchedCompanies | Where-Object {@($_.PPcompany.name, $_.PPcompany.decodedName) -contains $newCredential.'Client Name'} | Select-Object -First 1).HuduCompany
+    $MatchedAsset = $($CreatedAssets | Where-Object {$_.HuduAsset.company_id -eq $MatchedCompany.id -and $(Get-StringVariants $_.MatchedLayout.Name) -contains $_.newCredential.Credential} | Select-Object -First 1)
+    
+
+    $PasswordIDX=$PasswordIDX+1
+}
+
 
 
 
