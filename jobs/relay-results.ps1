@@ -29,7 +29,7 @@ Your hudu instance now has a total of $($(Get-HuduPasswords).count) passwords av
 "@
 
 $SummaryIDX=0
-foreach ($summaryItem in @()){
+foreach ($summaryItem in @($ResultOverview, $CompaniesResults, $LayoutsResults, $assetResults, $Passwordsresults)){
     $SummaryIDX = $SummaryIDX+1
     Set-PrintAndLog -message "$summaryItem" -Color $(if ($SummaryIDX % 2 -eq 0) { 'Cyan' } else { 'Green' })
 }
