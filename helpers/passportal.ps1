@@ -365,43 +365,6 @@ function Get-TopLevelFieldforAsset {
 
 }
 
-
-# function Get-NormalizedPassportalFields {
-
-#     param([Parameter(Mandatory)] $ppFields,
-#                             [array]$fieldMap,
-#                             [int]$passportalId
-#     )
-#     $fieldbuilder = @()
-
-#     # PSCustomObject -> hashtable
-#     foreach ($field in $fieldMap) {
-#         $label+=$field.label
-#         $matchedValue=$null
-#         $labelVariants = $(Get-StringVariants -InputString $label)
-#         Write-Host "Searching for label match $label in Passportal Fields"
-#         $ppFields.PSObject.Properties | ForEach-Object {
-#             $passportalLabel = $v.name ?? $(Set-Capitalized $_.Name )
-#             $extractedvalue = $_.Value.value.text
-#             if ($null -eq $extractedvalue){continue}
-
-#             foreach ($passportalVariant in  $(Get-StringVariants -InputString $passportalLabel)){
-#                 if ($labelVariants -contains $passportalVariant) {
-#                     $matchedValue = $extractedvalue
-#                 }
-#             }
-#             if ($null -ne $matchedValue){
-#                 $fieldbuilder+@{$label=$matchedValue}
-#                 Write-Host "Matched source field KV pair - $label with value $matchedValue "
-#             } else {
-#                 Write-Host "Couldnt match source field KV pair - $passportalLabel / $extractedvalue to Hudu Assetlayout $label "
-#             }
-#         }
-#     }
-#     return $fieldbuilder
-
-# }
-
 function Coerce-ForHudu {
     param(
         [Parameter(Mandatory)] $FieldDef,   # one item from your field map (label, field_type)
@@ -532,8 +495,9 @@ function Get-PassportalValue {
 
 
 function Resolve-PPValue {
-    param([Parameter(Mandatory)]$Node)
-
+    param(
+        $Node
+    )
     if ($null -eq $Node) { return $null }
 
     # handle Passportal wrappers:
