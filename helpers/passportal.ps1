@@ -351,7 +351,7 @@ function Get-NormalizedPassportalFields {
     }
     $ppFields.PSObject.Properties | ForEach-Object {
         $v = $_.Value
-        if ($null -eq $v -or $null -eq $v.value -or $null -eq $v.value.text) { Write-Host "sorce field from PassPortal is null for Hudu custom field"  continue }
+        if ($null -eq $v -or $null -eq $v.name -or $null -eq $v.value -or $null -eq $v.value.text) { Write-Host "sorce field from PassPortal is null for Hudu custom field"  continue }
         $extracted = $_.Value.value.text
         write-host "extracted $extracted for $($v.name)"
        
