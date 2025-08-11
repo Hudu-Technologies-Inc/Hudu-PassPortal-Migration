@@ -24,7 +24,43 @@ function Get-ContainsStringInsensitive {
 
     return [string]::IndexOf($String, $Substring, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
 }
+function Get-StringVariants {
+    param(
+        [Parameter(Mandatory)][string]$InputString
+    )
 
+    # normalize consecutive spaces/underscores to single space
+    $normalized = ($InputString -replace '[_\s]+', ' ').Trim()
+
+    # TitleCase
+    $titleWords = $normalized -split '\s+' | ForEach-Object {
+        if ($_ -and $_.Length -gt 0) {
+            $_.Substring(0,1).ToUpper() + $_.Substring(1).ToLower()
+        }
+    }
+    $titleCase = ($titleWords) -join ' '
+
+    # snake_case
+    $snakeCase = ($normalized -replace '\s+', '_').ToLower()
+
+    $variants = @(
+        $titleCase
+        ($titleCase -replace '\s+', '_')
+        ($titleCase -replace '[_\s]+', '')
+        ($snakeCase -replace '_', ' ')
+        $snakeCase
+        ($snakeCase -replace '[_\s]+', '')
+    )
+
+    # uniquify case-insensitively, preserving first occurrence
+    $set = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $out = New-Object System.Collections.Generic.List[string]
+    foreach ($v in $variants) {
+        if ([string]::IsNullOrEmpty($v)) { continue }
+        if ($set.Add($v)) { [void]$out.Add($v) }
+    }
+    return $out.ToArray()
+}
 function Get-HTTPDecodedString {
   param([Parameter(ValueFromPipeline)][string]$InputString)
   if ($null -eq $InputString) { return $null }

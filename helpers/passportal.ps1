@@ -129,34 +129,54 @@ function Get-PassportalFieldMapForType {
     $fieldMap = @{
         asset = @(
             @{ label="Asset Name"; field_type="Text" },
+            @{ label="Assigned User"; field_type="Text" },
+            @{ label="Purchased By"; field_type="Text" },
             @{ label="Model"; field_type="Text" },
             @{ label="Serial Number"; field_type="Text" },
             @{ label="Purchase Date"; field_type="Date" },
+            @{ label="Type"; field_type="Text" },
+            @{ label="Asset Tag"; field_type="Text" },
+            @{ label="Hostname"; field_type="Text" },
+            @{ label="Platform"; field_type="Text" },
+            @{ label="Primary IP"; field_type="Text" },
+            @{ label="Hostname"; field_type="Text" },
+            @{ label="Operating System"; field_type="Text" },
+            @{ label="Operating System Notes"; field_type="RichText" },
             @{ label="Notes"; field_type="RichText" }
         )
         active_directory = @(
-            @{ label="Domain Name"; field_type="Text" },
-            @{ label="Admin User"; field_type="Text" },
-            @{ label="Admin Password"; field_type="Password" },
+            @{ label="AD Full Name"; field_type="Text" },
+            @{ label="AD Short Name"; field_type="Text" },
+            @{ label="AD Level"; field_type="Text" },
+            @{ label="Directory Services Restore Mode Password"; field_type="Password" },
             @{ label="Domain Controller IP"; field_type="Text" }
         )
         application = @(
-            @{ label="App Name"; field_type="Text" },
+            @{ label="Application Name"; field_type="Text" },
             @{ label="License Key"; field_type="Text" },
-            @{ label="Publisher"; field_type="Text" },
-            @{ label="Install Date"; field_type="Date" }
+            @{ label="Category"; field_type="Text" },
+            @{ label="Version"; field_type="Text" }
+            @{ label="NOTES"; field_type="RichText" }
         )
         backup = @(
+            @{ label="Backup Technology"; field_type="Text" },
             @{ label="Backup Type"; field_type="Text" },
-            @{ label="Software Used"; field_type="Text" },
-            @{ label="Schedule"; field_type="Text" },
-            @{ label="Last Successful Backup"; field_type="Date" }
+            @{ label="Backup Description"; field_type="Text" },
+            @{ label="Backup Interval"; field_type="Text" },
+            @{ label="Backup Window"; field_type="Text" },
+            @{ label="Retention Policy"; field_type="Text" },
+            @{ label="Notes"; field_type="RichText" },
+            @{ label="Last Successful Backup"; field_type="Date" },
+            @{ label="Next Test Restore Date"; field_type="Date" }
         )
         email = @(
             @{ label="Email Address"; field_type="Text" },
-            @{ label="Password"; field_type="Password" },
-            @{ label="IMAP Server"; field_type="Text" },
-            @{ label="SMTP Server"; field_type="Text" }
+            @{ label="Email Type"; field_type="Password" },
+            @{ label="Domain(s)"; field_type="Text" },
+            @{ label="Email Servers"; field_type="Text" },
+            @{ label="WebMail URL"; field_type="Text" },
+            @{ label="Inbound Delivery"; field_type="Text" },
+            @{ label="Notes"; field_type="RichText" }
         )
         folders = @(
             @{ label="Folder Name"; field_type="Text" },
@@ -164,19 +184,32 @@ function Get-PassportalFieldMapForType {
             @{ label="Permissions"; field_type="RichText" }
         )
         file_sharing = @(
-            @{ label="Platform"; field_type="Text" },
-            @{ label="Link"; field_type="Text" },
+            @{ label="Share Name"; field_type="Text" },
+            @{ label="Share Description"; field_type="Text" },
+            @{ label="File Servers"; field_type="Text" },
+            @{ label="Share UNC Path"; field_type="Text" },
+            @{ label="Mapped Drive"; field_type="Text" },
+            @{ label="File Share Permissions"; field_type="Text" },
             @{ label="User Accounts"; field_type="RichText" }
         )
         contact = @(
-            @{ label="Full Name"; field_type="Text" },
-            @{ label="Email"; field_type="Text" },
-            @{ label="Phone"; field_type="Text" },
-            @{ label="Role"; field_type="Text" }
+            @{ label="Contact Type"; field_type="Text" },
+            @{ label="Primary Contact"; field_type="Text" },
+            @{ label="Job Title"; field_type="Text" },
+            @{ label="First Name"; field_type="Text" },
+            @{ label="Last Name"; field_type="Text" },
+            @{ label="Phone"; field_type="Phone" },
+            @{ label="Notes"; field_type="RichText" },
+            @{ label="Email"; field_type="Text" }
         )
         location = @(
-            @{ label="Location Name"; field_type="Text" },
-            @{ label="Address"; field_type="RichText" },
+            @{ label="Name"; field_type="Text" },
+            @{ label="Address 1"; field_type="Text" },
+            @{ label="Address 2"; field_type="Text" },
+            @{ label="City"; field_type="Text" },
+            @{ label="Country"; field_type="Text" },
+            @{ label="State"; field_type="RichText" },
+            @{ label="Fax"; field_type="Text" },
             @{ label="Phone"; field_type="Text" }
         )
         internet = @(
@@ -191,21 +224,23 @@ function Get-PassportalFieldMapForType {
             @{ label="Port Number"; field_type="Text" }
         )
         printing = @(
-            @{ label="Printer Name"; field_type="Text" },
-            @{ label="IP Address"; field_type="Text" },
-            @{ label="Model"; field_type="Text" },
+            @{ label="Connection Type"; field_type="Text" },
+            @{ label="Print Drivers Path"; field_type="Text" },
+            @{ label="Notes"; field_type="RichText" },
             @{ label="Location"; field_type="Text" }
         )
         remote_access = @(
-            @{ label="Tool"; field_type="Text" },
-            @{ label="Host"; field_type="Text" },
-            @{ label="Username"; field_type="Text" },
+            @{ label="Site"; field_type="Text" },
+            @{ label="Client VPN URL"; field_type="Text" },
+            @{ label="Client VPN Installer"; field_type="Text" },
+            @{ label="Remote Desktop"; field_type="Text" },
+            @{ label="Webmail"; field_type="Text" },
             @{ label="Password"; field_type="Password" }
         )
         vendor = @(
-            @{ label="Vendor Name"; field_type="Text" },
-            @{ label="Account Rep"; field_type="Text" },
-            @{ label="Phone"; field_type="Text" },
+            @{ label="Vendor Website"; field_type="Text" },
+            @{ label="Vendor Support URL"; field_type="Text" },
+            @{ label="Support Phone Number"; field_type="Text" },
             @{ label="Support Email"; field_type="Text" }
         )
         virtualization = @(
@@ -325,68 +360,9 @@ function Get-TopLevelFieldforAsset {
                 write-host "Found optional asset property $($prop.name) = $($prop.resolved)"
             }
         }
+        
     return $props
 
-}
-
-
-function Get-NormalizedPassportalFields {
-    <#
-      Input: $ppFields = the PSCustomObject at details[0].Fields
-      Output: hashtable with:
-        - original Passportal keys (e.g. "backup_type") → coerced value
-        - also index by the human label when available (e.g. "Backup Type") → same value
-    #>
-    param([Parameter(Mandatory)] $ppFields)
-
-    # PSCustomObject -> hashtable
-    $h = @{}
-    $ppFields.PSObject.Properties | ForEach-Object {
-        $k = $_.Name
-        $v = $_.Value
-
-        if ($null -eq $v) { return }
-
-        # extract displayed text when nested
-        $val =
-            if ($v -is [System.Collections.IDictionary]) {
-                if ($v.ContainsKey('value')) {
-                    $valObj = $v['value']
-                    if ($valObj -is [System.Collections.IDictionary] -and $valObj.ContainsKey('text')) {
-                        $valObj['text']
-                    } else {
-                        $valObj
-                    }
-                } elseif ($v.ContainsKey('attribute')) {
-                    # attribute often an array of objects; pull text(s)
-                    $attrs = $v['attribute']
-                    if ($attrs -is [System.Collections.IEnumerable]) {
-                        @($attrs | ForEach-Object {
-                            if ($_ -is [System.Collections.IDictionary] -and $_.ContainsKey('text')) { $_['text'] } else { $_ }
-                        }) | Where-Object { $_ -ne $null -and $_ -ne '' }
-                    } else {
-                        $v
-                    }
-                } else {
-                    $v
-                }
-            } else {
-                $v
-            }
-
-        # index by original key
-        $h[$k] = $val
-
-        # also index by human label if present (e.g. Backup Type)
-        if ($v -is [System.Collections.IDictionary] -and $v.ContainsKey('name') -and $v['name']) {
-            $label = [string]$v['name']
-            $h[$label] = $val
-            # and by snake_case label for convenience
-            $h[(Convert-ToSnakeCase $label)] = $val
-        }
-    }
-
-    return $h
 }
 
 function Coerce-ForHudu {
@@ -518,55 +494,84 @@ function Get-PassportalValue {
 }
 
 
-function Build-HuduCustomFields {
+function Resolve-PPValue {
     param(
-        [Parameter(Mandatory)][array]$FieldMap,
-        [Parameter(Mandatory)][hashtable]$HuduValuesByLabel
+        $Node
     )
+    if ($null -eq $Node) { return $null }
 
-    $list = New-Object System.Collections.Generic.List[hashtable]
-
-    foreach ($f in $FieldMap) {
-        $label = $f.label
-        $key   = if ($f.PSObject.Properties['key'] -and $f.key) { 
-                     $f.key 
-                 } else { 
-                     Convert-ToSnakeCase $label 
-                 }
-
-        if ($HuduValuesByLabel.ContainsKey($label)) {
-            $raw = $HuduValuesByLabel[$label]
-
-            # --- Passportal value extraction ---
-            if ($null -ne $raw) {
-                if ($raw.PSObject.Properties['value']) {
-                    $val = $raw.value
-
-                    if ($val -is [psobject] -or $val -is [hashtable]) {
-                        # Prefer .text if present
-                        if ($val.PSObject.Properties['text'] -and $val.text) {
-                            $raw = $val.text
-                        }
-                        # Otherwise, fall back to .id
-                        elseif ($val.PSObject.Properties['id'] -and $val.id) {
-                            $raw = $val.id
-                        }
-                        else {
-                            $raw = $val
-                        }
-                    }
-                    else {
-                        $raw = $val
-                    }
-                }
-            }
-            # -----------------------------------
-
-            if ($null -ne $raw -and ($raw -ne '' -or $raw -isnot [string])) {
-                $list.Add(@{ $key = $raw })
-            }
+    # handle Passportal wrappers:
+    # Prefer resolvedObject.value
+    if ($Node.PSObject.Properties['resolvedObject']) {
+        $ro = $Node.resolvedObject
+        if ($ro -and $ro.PSObject.Properties['value']) {
+            return (Resolve-PPValue $ro.value)
         }
     }
 
-    return @($list)
+    # value.text / value.id / value (primitive)
+    if ($Node.PSObject.Properties['value']) {
+        $v = $Node.value
+        if ($v -is [psobject] -or $v -is [hashtable]) {
+            if ($v.PSObject.Properties['text'] -and $v.text) { return $v.text }
+            if ($v.PSObject.Properties['name'] -and $v.name) { return $v.name }
+            if ($v.PSObject.Properties['id']   -and $v.id)   { return $v.id }
+        }
+        return $v
+    }
+
+    # fallback text/name
+    if ($Node.PSObject.Properties['text']) { return $Node.text }
+    if ($Node.PSObject.Properties['name']) { return $Node.name }
+
+    return $Node
+}
+
+function Get-NormalizedPassportalFields {
+    param(
+        [Parameter(Mandatory)] $ppFields,   # hashtable/psobject: Passportal .Fields bag
+        [Parameter(Mandatory)][array]$fieldMap, # Hudu layout fields (with .label)
+        [int]$passportalId
+    )
+
+    # 1) Build a fast lookup: variant (lower) -> property (Passportal field object)
+    $variantToProp = @{}
+    foreach ($prop in $ppFields.PSObject.Properties) {
+        # Passportal keeps both the key name and a 'name' inside the value; prefer inner .name if present
+        $ppLabel = if ($prop.Value -and $prop.Value.PSObject.Properties['name']) { $prop.Value.name } else { $prop.Name }
+        foreach ($v in (Get-StringVariants $ppLabel)) {
+            $k = $v.ToLower()
+            if (-not $variantToProp.ContainsKey($k)) { $variantToProp[$k] = $prop }  # first match wins
+        }
+    }
+
+    # 2) For each Hudu field label, try to match a PP field via variants and extract value
+    $result = @{}
+    foreach ($field in $fieldMap) {
+        $label = $field.label
+        if (-not $label) { continue }
+
+        $matched = $null
+        foreach ($candidate in (Get-StringVariants $label)) {
+            $key = $candidate.ToLower()
+            if ($variantToProp.ContainsKey($key)) { $matched = $variantToProp[$key]; break }
+        }
+
+        if ($matched) {
+            $val = Resolve-PPValue $matched.Value
+            if ($null -ne $val -and "$val" -ne '') {
+                $result[$label] = $val
+                # Write-Host "Matched '$label' → '$($matched.Name)' = '$val'"
+            } else {
+                # Write-Host "Matched '$label' but value empty for PP key '$($matched.Name)'"
+            }
+        } else {
+            # Write-Host "No PP match for Hudu label '$label' (PP doc id $passportalId)"
+        }
+    }
+
+    # Always handy to include the source id
+    if ($passportalId) { $result['PassPortalID'] = $passportalId }
+
+    return $result
 }
