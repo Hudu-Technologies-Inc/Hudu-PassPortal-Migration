@@ -48,54 +48,85 @@ function Get-PassportalObjects {
     }
 }
 
+    function Test-CSVHasHeader {
+        param([string]$Path, [string[]]$ExpectedCols)
+        $first = (Get-Content -Path $Path -TotalCount 1) -replace '^\uFEFF',''  # strip BOM
+        # case-insensitive check that at least one of expected columns is present
+        foreach ($col in $ExpectedCols) {
+            if ($first -match [regex]::Escape($col)) { return $true }
+        }
+        return $false
+    }
 function Get-CSVExportData {
-    param (
-        [string]$exportsFolder
+    param(
+        [Parameter(Mandatory)][string]$exportsFolder
     )
 
-    Set-PrintAndLog -message "Checking .\exported-csvs folder for Passportal exports..." -Color DarkBlue
-    foreach ($file in Get-ChildItem -Path $exportsFolder -Filter "*.csv" -File | Sort-Object Name) {
-        Set-PrintAndLog -message "Importing: $($file.Name)" -Color DarkBlue
-        $csvData=@{}
-        $fullPath = $file.FullName
-        $firstLine = (Get-Content -Path $fullPath -TotalCount 1).Trim()
+    Set-PrintAndLog -message "Checking $exportsFolder for Passportal exports..." -Color DarkBlue
 
-        # Check if the first line appears to be a header
-        $hasHeader = $firstLine -match 'PassPortal ID'
-
-        if ($file.Name -like "*clients.csv") {
-            $csv = if ($hasHeader) {
-                Import-Csv -Path $fullPath
-            } else {
-                Import-Csv -Path $fullPath -Header "PassPortal ID","Name","Email"
-            }
-            $csvData['clients'] = $csv
-        } elseif ($file.Name -like "*passwords.csv") {
-            $csv = if ($hasHeader) {
-                Import-Csv -Path $fullPath
-            } else {
-                Import-Csv -Path $fullPath -Header "Passportal ID","Client Name","Credential","Username","Password","Description","Expires (Yes/No)","Notes","URL","Folder(Optional)"
-            }
-            $csvData['passwords'] = $csv
-        } elseif ($file.Name -like "*users.csv") {
-            $csv = if ($hasHeader) {
-                Import-Csv -Path $fullPath
-            } else {
-                Import-Csv -Path $fullPath -Header "Passportal ID (BLANK)","Last Name","First Name","Email","Phone"
-
-            }
-            $csvData['users'] = $csv
-        } elseif ($file.Name -like "*vault.csv") {
-            $csv = if ($hasHeader) {
-                Import-Csv -Path $fullPath
-            } else {
-                Import-Csv -Path $fullPath -Header "Passportal ID","Credential","Username","Password","Description","Expires (Yes/No)","Notes","URL","Folder(Optional)"
-            }
-            $csvData['vault'] = $csv
-        }        
+    $csvData = [ordered]@{
+        clients   = @()
+        passwords = @()
+        users     = @()
+        vault     = @()
     }
+
+
+
+    Get-ChildItem -Path $exportsFolder -Filter '*.csv' -File | Sort-Object Name | ForEach-Object {
+        $fullPath = $_.FullName
+        Set-PrintAndLog -message "Importing: $($_.Name)" -Color DarkBlue
+
+        switch -Wildcard ($_.Name.ToLower()) {
+            '*clients*.csv' {
+                $expected = @('Passportal ID','Client Name','Phone','Email')
+                $hasHeader = Test-CSVHasHeader -Path $fullPath -ExpectedCols $expected
+                $csv = if ($hasHeader) {
+                    Import-Csv -Path $fullPath
+                } else {
+                    Import-Csv -Path $fullPath -Header $expected
+                }
+                $csvData.clients = $csv
+            }
+            '*passwords*.csv' {
+                $expected = @('Passportal ID','Client Name','Credential','Username','Password','Description','Expires (Yes/No)','Notes','URL','Folder(Optional)')
+                $hasHeader = Test-CSVHasHeader -Path $fullPath -ExpectedCols $expected
+                $csv = if ($hasHeader) {
+                    Import-Csv -Path $fullPath
+                } else {
+                    Import-Csv -Path $fullPath -Header $expected
+                }
+                $csvData.passwords = $csv
+            }
+            '*users*.csv' {
+                $expected = @('Passportal ID (BLANK)','Last Name','First Name','Email','Phone')
+                $hasHeader = Test-CSVHasHeader -Path $fullPath -ExpectedCols $expected
+                $csv = if ($hasHeader) {
+                    Import-Csv -Path $fullPath
+                } else {
+                    Import-Csv -Path $fullPath -Header $expected
+                }
+                $csvData.users = $csv
+            }
+            '*vault*.csv' {
+                $expected = @('Passportal ID','Credential','Username','Password','Description','Expires (Yes/No)','Notes','URL','Folder(Optional)')
+                $hasHeader = Test-CSVHasHeader -Path $fullPath -ExpectedCols $expected
+                $csv = if ($hasHeader) {
+                    Import-Csv -Path $fullPath
+                } else {
+                    Import-Csv -Path $fullPath -Header $expected
+                }
+                $csvData.vault = $csv
+            }
+            Default {
+                Set-PrintAndLog -message "Skipping unknown CSV: $($_.Name)" -Color DarkYellow
+            }
+        }
+    }
+
     return $csvData
 }
+
 
 $PassportalLayoutDefaults = @{
     asset           = @{ icon = "fas fa-box";           label = "Assets" }
@@ -324,7 +355,7 @@ function Build-HuduFieldsFromDocument {
         }
     }
 
-    $fieldValues['PassPortalID'] = $docId
+    $fieldValues['PassPortalID'] = "$docId"
     return $fieldValues
 }
 
