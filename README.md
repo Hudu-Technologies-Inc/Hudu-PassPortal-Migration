@@ -54,6 +54,18 @@ If you are experiencing trouble authenticating to Passportal, you might try swit
 
 We'll then load all the data possible from the Passportal API, which can take a while. 
 
-<img width="1229" height="157" alt="image" src="https://github.com/user-attachments/assets/ea99168e-b0ad-4820-8600-2c4379e381a2" />
+<img width="442" height="126" alt="image" src="https://github.com/user-attachments/assets/32d61723-3ca0-4386-bcea-c16706b6b3a2" />
+
+### Matching / Adding Assets/Companies and Layouts
+
+If you don't have any companies created in Hudu, it will simply create every client found in Passportal without prompting.
+
+If there are companies present in Hudu, you'll be prompted for which company (if any) to attribute each asset to, in case you have created the company in Hudu already.
+
+<img width="785" height="125" alt="image" src="https://github.com/user-attachments/assets/62022e0e-fc66-4d64-84af-7f7cb8910f36" />
+
+During this prompt, you can select 1 for Skip, 2 for create new if there are no matches. Otherwise, selecting an existing company in Hudu will attribute that client's assets/objects to your selected company.
+
+
 
 ## Todo
