@@ -144,7 +144,7 @@ function Get-PassportalFieldMapForType {
             @{ label="Subnet Mask"; field_type="Text" },            
             @{ label="Gateway(S)"; field_type="Text" },            
             @{ label="DNS Servers"; field_type="Text" },            
-            @{ label="Gateway(S)"; field_type="Text" },            
+            @{ label="Gateway(S)"; field_type="Text" }           
         )
         printing = @(
             @{ label="Connection Type"; field_type="Text" },

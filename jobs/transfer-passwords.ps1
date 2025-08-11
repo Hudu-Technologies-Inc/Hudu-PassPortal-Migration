@@ -24,7 +24,8 @@ foreach ($password in $passportalData.csvData.passwords) {
     } elseif ($MatchableAssets.count -eq 1){
         $matchedAsset = $MatchableAssets | Select-Object -First 1
     }
-    $MatchedAsset = $MatchedAsset ?? $(Select-ObjectFromList -objects $MatchableAssets -message "Which asset to match for new credential $(Get-JsonString $newCredential)? Select 0/skip to just attribute to company" -allowNull $true -inspectObjects $true)
+
+    $MatchedAsset = $MatchedAsset ?? $(Select-ObjectFromList -objects $MatchableAssets.HuduAsset -message "Which asset to match for new credential $(Get-JsonString $newCredential)? Select 0/skip to just attribute to company" -allowNull $true -inspectObjects $true)
 
     $NewPassSplat= @{
         CompanyId               = $matchedCompany.Id
