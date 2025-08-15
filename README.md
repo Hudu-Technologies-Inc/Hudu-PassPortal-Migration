@@ -16,14 +16,17 @@ Easy Migration from SolarWinds Passportal to Hudu
 ### Terminology
 
 Hudu uses different terminology than Passportal.
-For example, in Hudu, a data structure that describes an asset type is called an 'Asset Layout'. In Passportal, it is called a 'doctype'.
-In Hudu, an object that represents an item that belongs to a company is called an 'Asset', whereas in Passportal, it is called a 'doc'.
+
+For example, in Hudu, a data structure that describes an asset type is called an 'Asset Layout'. In Passportal, it is called a 'doctype.'
+
+In Hudu, an object that represents an item that belongs to a company is called an 'Asset', whereas in Passportal, it is called a 'doc.'
 
 ### Setup Passportal API Key/Secret
 
 To set up everything you need in passportal, you can **first log in**, **then navigate to the `Settings`** area from the left navigation menu.
 <img width="2680" height="910" alt="image" src="https://github.com/user-attachments/assets/c587c88a-ec19-4ab0-b98d-2dd426988007" />
-You'll then click `Create Access Key`. Take note of both values, as it will only show you the secret once.
+
+You'll then click `Create Access Key`. **Take note of both values, as it will only show you the secret once.**
 
 You'll place your exported CSVs from Passportal in `.\exported-csvs\*`. This is required if you want to import passwords using this utility, since passwords are not available/exposed-to the Passportal API at present. While not including headers in your CSV export should be fine and is handled, you're encouraged to opt for including headers.
 
@@ -32,11 +35,12 @@ You'll place your exported CSVs from Passportal in `.\exported-csvs\*`. This is 
 ## Getting Started
 
 ### Launching Script
-getting started is really as simple as starting the main script.
+
+Getting started is really as simple as starting the main script.
 
 ---
 
-There are a few ways to start. First, and probably easiest, you can simply start the script.
+There are a few ways to start. Probably the easiest way is to simply start the script with PowerShell.
 
 ```
  . .\Passportal-Migration.ps1
@@ -49,8 +53,9 @@ write-host "...everything is edited!"
  . .\Passportal-Migration.ps1
 ```
 
-If you chose the former, you will be prompted to enter the secrets needed to continue. If you did the latter, you'll only be prompted for these secrets if you left something empty.
-Startup will perform some self-checks (like hudu version, powershell version) and make sure everything is in order before beginning.
+If you chose the former, you will be prompted to enter the secrets needed to continue. If you did the latter, you'll only be prompted for these secrets if you left any of the values blank.
+
+Startup will perform some self-checks (such as hudu version, powershell version) and make sure everything is in order before beginning.
 
 <img width="710" height="292" alt="image" src="https://github.com/user-attachments/assets/161bb82e-b973-46d8-8d4e-c482a7257e97" />
 
