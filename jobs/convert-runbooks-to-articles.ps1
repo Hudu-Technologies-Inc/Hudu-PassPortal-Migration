@@ -158,7 +158,9 @@ foreach ($key in $convertedDocs.Keys) {
     $articleUsed = $matchedDocument ?? $newDocument ?? $null
     if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
     Write-Host "Checking for or creating existing image embeds"
-    $existingRelatedImages = Get-Huduuploads -companyId $matchedCompany.id | where-object {$_.uploadable_type -eq "Article" -and $_.uploadable_id -eq $articleUsed.Id}
+    $existingRelatedImages = Get-Huduuploads | where-object {$_.uploadable_type -eq "Company" -and $_.uploadable_id -eq $matchedCompany.Id}
+    
+    
     $HuduImages = @()
     foreach ($ImageFile in $doc.ExtractedImages){
         $existingUpload = $null
@@ -171,8 +173,8 @@ foreach ($key in $convertedDocs.Keys) {
         } else {
             Write-Host "No existing upload, uploading file @ $($ImageFile)"
             $uploaded = New-HuduUpload -FilePath $ImageFile `
-                -Uploadable_Id $articleUsed.Id `
-                -Uploadable_Type 'Article'
+                -Uploadable_Id $matchedCompany.Id `
+                -Uploadable_Type 'Company'
             $uploaded = $uploaded.upload ?? $uploaded
         }
         $usingImage = $existingUpload ?? $uploaded ?? $null
