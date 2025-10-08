@@ -8,7 +8,7 @@ $includeHiddenText=$true
 $includeComplexLayouts=$true
 
 # for testing
-$SingleDocumentTest = $true
+$SingleDocumentTest = $false
 
 $workdir = $workdir ?? $(split-path $(resolve-path .))
 $PopplerBins=$(join-path $workdir "tools\poppler")
