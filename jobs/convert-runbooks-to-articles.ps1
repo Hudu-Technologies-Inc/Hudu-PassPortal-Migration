@@ -108,6 +108,7 @@ foreach ($a in $ConvertDocsList){
             FoundLinks = @()
             SplitDocs = @()
             HuduCompany = $null
+            HuduImages = @()
             CompanyName = ""
         }
     } catch {
@@ -141,27 +142,8 @@ foreach ($key in $convertedDocs.Keys) {
 
   $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
   $doc['SplitDocs']   = @()
-  foreach ($sd in $split) {
-    $matchedDocument = $null
-    $newDocument = $null
-    $uploaded = $null
-    $matchedDocument = $allHududocuments | Where-Object {
-        $_.company_id -eq $matchedCompany.id -and
-            $(Test-Equiv -A $_.name -B $sd.Title)} | Select-Object -first 1
-    $matchedDocument = $matchedDocument ?? $($(Get-HuduArticles -CompanyId $matchedCompany.id -name $sd.Title) | Select-Object -first 1)
-    if (-not $matchedDocument){
-        $newDocument = New-HuduArticle -name "$($sd.Title)" -Content "[transfer in-progress]" -CompanyId $matchedCompany.id
-        $newDocument = $newDocument.article ?? $newDocument
-    }
-    if ($newDocument){Write-Host "Created article stub $($newDocument.id)"}
-    elseif ($matchedDocument){Write-Host "Matched exist article $($matchedDocument.id)"}
-    $articleUsed = $matchedDocument ?? $newDocument ?? $null
-    if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
-    Write-Host "Checking for or creating existing image embeds"
+  $HuduImages = @()
     $existingRelatedImages = Get-Huduuploads | where-object {$_.uploadable_type -eq "Company" -and $_.uploadable_id -eq $matchedCompany.Id}
-    
-    
-    $HuduImages = @()
     foreach ($ImageFile in $doc.ExtractedImages){
         $existingUpload = $null
         $ImagefileName = "$([IO.Path]::GetFileName($ImageFile))".trim
@@ -186,12 +168,32 @@ foreach ($key in $convertedDocs.Keys) {
             UsingImage = $usingImage
         }
     }
+    $doc['HuduImages'] = $HuduImages
+
+
+  foreach ($sd in $split) {
+    $matchedDocument = $null
+    $newDocument = $null
+    $uploaded = $null
+    $matchedDocument = $allHududocuments | Where-Object {
+        $_.company_id -eq $matchedCompany.id -and
+            $(Test-Equiv -A $_.name -B $sd.Title)} | Select-Object -first 1
+    $matchedDocument = $matchedDocument ?? $($(Get-HuduArticles -CompanyId $matchedCompany.id -name $sd.Title) | Select-Object -first 1)
+    if (-not $matchedDocument){
+        $newDocument = New-HuduArticle -name "$($sd.Title)" -Content "[transfer in-progress]" -CompanyId $matchedCompany.id
+        $newDocument = $newDocument.article ?? $newDocument
+    }
+    if ($newDocument){Write-Host "Created article stub $($newDocument.id)"}
+    elseif ($matchedDocument){Write-Host "Matched exist article $($matchedDocument.id)"}
+    $articleUsed = $matchedDocument ?? $newDocument ?? $null
+    if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
+    Write-Host "Checking for or creating existing image embeds"
+
 
     $doc['SplitDocs'] += [pscustomobject]@{
       Title   = $sd.Title
       Article = $sd.Html
       HuduArticle = $articleUsed
-      HuduImages = $HuduImages
     }
   }
 }
