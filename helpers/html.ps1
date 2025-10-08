@@ -39,19 +39,17 @@ function Get-NormalizedTitle {
 function Rewrite-DocLinks {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory, Position=0)][string]$Html,
-    [Parameter(Mandatory)][scriptblock]$ImageResolver, # param([string]$src,[hashtable]$ctx) -> [string] or $null
-    [Parameter(Mandatory)][scriptblock]$LinkResolver,  # param([string]$href,[hashtable]$ctx) -> [string] or $null
+    [Parameter(Mandatory)][string]$Html,
+    [Parameter(Mandatory)][scriptblock]$ImageResolver, # param([string]$src,[hashtable]$ctx)->[string] or $null
+    [Parameter(Mandatory)][scriptblock]$LinkResolver,  # param([string]$href,[hashtable]$ctx)->[string] or $null
     [hashtable]$Context = @{}
   )
 
   $rewrites  = New-Object System.Collections.Generic.List[object]
   $unresolved = New-Object System.Collections.Generic.List[object]
 
-  # 1) tag attributes (src/href/data/poster)
   $html1 = $Script:RxTag.Replace($Html, {
     param([Match]$m)
-
     $tagName = $m.Groups[1].Value.ToLowerInvariant()
     $attrs   = $m.Groups['attrs'].Value
 
@@ -61,11 +59,7 @@ function Rewrite-DocLinks {
       $q    = $ma.Groups['q'].Value
       $val  = $ma.Groups['val'].Value
 
-      $newVal = $null
-      switch ($name) {
-        'href' { $newVal = & $LinkResolver  $val $Context }
-        default { $newVal = & $ImageResolver $val $Context } # src/data/poster
-      }
+      $newVal = if ($name -eq 'href') { & $LinkResolver $val $Context } else { & $ImageResolver $val $Context }
 
       if ($newVal -and $newVal -ne $val) {
         $rewrites.Add([pscustomobject]@{ Tag=$tagName; Attr=$name; From=$val; To=$newVal }) | Out-Null
@@ -75,11 +69,9 @@ function Rewrite-DocLinks {
         return $ma.Value
       }
     })
-
     "<$tagName$newAttrs>"
   })
 
-  # 2) inline style url(...) occurrences
   $html2 = $Script:RxStyleAttr.Replace($html1, {
     param([Match]$m)
     $q     = $m.Groups[1].Value
@@ -97,7 +89,6 @@ function Rewrite-DocLinks {
         return $mu.Value
       }
     })
-
     " style=$q$newStyle$q"
   })
 
@@ -107,6 +98,7 @@ function Rewrite-DocLinks {
     Unresolved = $unresolved
   }
 }
+
 function Get-SimilaritySafe { param([string]$A,[string]$B)
     if ([string]::IsNullOrWhiteSpace($A) -or [string]::IsNullOrWhiteSpace($B)) { return 0.0 }
     Get-Similarity $A $B
@@ -230,6 +222,49 @@ function Get-ReplacementUrl {
   return $null
 }
 
+# Build maps for a single $doc
+function New-DocImageMap {
+  param([Parameter(Mandatory)][object[]]$HuduImages)
+  $map = @{}
+  foreach ($h in $HuduImages) {
+    $orig = [string](Split-Path -Leaf $h.OriginalFilename)
+    $url  = $h.UsingImage.url ?? $h.UsingImage.public_url ?? $h.UsingImage.file_url ?? $h.UsingImage.cdn_url
+    if ($orig -and $url) { $map[$orig] = $url }
+  }
+  $map
+}
+
+function New-DocArticleMap {
+  param(
+    [Parameter(Mandatory)][object[]]$SplitDocs,  # each has Title, HuduArticle
+    [string]$HuduBaseUrl
+  )
+  $map = @{}
+  foreach ($sd in $SplitDocs) {
+    $url = $sd.HuduArticle.url
+    if (-not $url) { continue }
+    $t    = [string]$sd.Title
+    $norm = Get-NormalizedTitle $t
+    $slug = Get-TitleSlug $t
+    $keys = @($t, $norm, $slug) | Where-Object { $_ }
+    foreach ($k in $keys) { if (-not $map.ContainsKey($k)) { $map[$k] = $url } }
+  }
+  $map
+}
+function Get-NormalizedTitle {
+  param([string]$s)
+  if ([string]::IsNullOrWhiteSpace($s)) { return '' }
+  $s = [System.Web.HttpUtility]::HtmlDecode($s)
+  $s = $s -replace '\s+', ' '
+  $s = $s.Trim()
+  $s.ToLowerInvariant()
+}
+
+function Get-TitleSlug {
+  param([string]$s)
+  if ([string]::IsNullOrWhiteSpace($s)) { return '' }
+  ($s -replace '[^\p{L}\p{Nd}]+','-').Trim('-').ToLowerInvariant()
+}
 function Rewrite-DocLinks {
   [CmdletBinding()]
   param(

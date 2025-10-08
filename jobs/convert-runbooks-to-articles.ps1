@@ -147,8 +147,7 @@ foreach ($key in $convertedDocs.Keys) {
     $uploaded = $null
     $matchedDocument = $allHududocuments | Where-Object {
         $_.company_id -eq $matchedCompany.id -and
-                $($(Test-Equiv -A $_.name -B $sd.Title) -or 
-                $([double]$(Get-SimilaritySafe -A $_.name -B $sd.Title) -ge 0.94))} | Select-Object -first 1
+            $(Test-Equiv -A $_.name -B $sd.Title)} | Select-Object -first 1
     $matchedDocument = $matchedDocument ?? $($(Get-HuduArticles -CompanyId $matchedCompany.id -name $sd.Title) | Select-Object -first 1)
     if (-not $matchedDocument){
         $newDocument = New-HuduArticle -name "$($sd.Title)" -Content "[transfer in-progress]" -CompanyId $matchedCompany.id
@@ -159,16 +158,16 @@ foreach ($key in $convertedDocs.Keys) {
     $articleUsed = $matchedDocument ?? $newDocument ?? $null
     if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
     Write-Host "Checking for or creating existing image embeds"
-    $existingRelatedImages = Get-Huduuploads | where-object {$_.uploadable_type -eq "Article" -and [string]$_.uploadable_id -eq [string]$articleUsed.Id}
+    $existingRelatedImages = Get-Huduuploads -companyId $matchedCompany.id | where-object {$_.uploadable_type -eq "Article" -and $_.uploadable_id -eq $articleUsed.Id}
     $HuduImages = @()
     foreach ($ImageFile in $doc.ExtractedImages){
         $existingUpload = $null
-        $ImagefileName = $(resolve-path $ImageFile).baseName
-        Write-Host "Checking $($existingRelatedImages.count) related image for $ImagefileName"
-        $existingupload = $existingRelatedImages | where-object {"$($_.name)" -ilike "*$($ImagefileName)*" -or $(Test-Equiv -A $_.name -B "$ImagefileName")} | select-object -first 1
+        $ImagefileName = "$([IO.Path]::GetFileName($ImageFile))".trim
+        $existingupload = $existingRelatedImages | where-object {$_.name -eq $ImagefileName} | select-object -first 1
+        $existingupload = $existingupload ?? ($existingRelatedImages | where-object {$(Test-Equiv -A $_.name -B $ImagefileName)} | select-object -first 1)
         $existingupload = $existingupload.upload ?? $existingupload
         if ($existingUpload) {
-            write-host "ExistingUplaod Match $existingupload"
+            write-host "ExistingUpload Match $existingupload"
         } else {
             Write-Host "No existing upload, uploading file @ $($ImageFile)"
             $uploaded = New-HuduUpload -FilePath $ImageFile `
@@ -195,4 +194,66 @@ foreach ($key in $convertedDocs.Keys) {
   }
 }
 
-Write-Host "All Articles created or stubbed"
+Write-Host "All Articles created or stubbed; time to rewrite image sources and anchors"
+
+$ImageResolver = {
+  param([string]$src, [hashtable]$ctx)
+  if ([string]::IsNullOrWhiteSpace($src)) { return $null }
+  if ($src -match '^(?i)(https?:|data:)') { return $src }
+
+  $leaf = Split-Path -Leaf $src
+  if ($ctx.ImageMap.ContainsKey($leaf)) { return $ctx.ImageMap[$leaf] }
+
+  # Sometimes exports reference "file:///C:/.../foo.png" or "./img/foo.png"
+  $try = $leaf
+  if ($ctx.ImageMap.ContainsKey($try)) { return $ctx.ImageMap[$try] }
+
+  return $null
+}
+
+$LinkResolver = {
+  param([string]$href, [hashtable]$ctx)
+  if ([string]::IsNullOrWhiteSpace($href)) { return $null }
+  if ($href -match '^(?i)https?:') { return $href }    # already absolute; leave
+  if ($href.StartsWith('#')) { return $null }          # in-doc anchors (optional)
+
+  $leaf     = Split-Path -Leaf $href
+  $leafNoEx = [IO.Path]::GetFileNameWithoutExtension($leaf)
+  $norm     = Get-NormalizedTitle $leafNoEx
+  $slug     = Get-TitleSlug $leafNoEx
+
+  foreach ($k in @($leafNoEx,$norm,$slug)) {
+    if ($k -and $ctx.ArticleMap.ContainsKey($k)) { return $ctx.ArticleMap[$k] }
+  }
+  return $null
+}
+
+foreach ($key in $convertedDocs.Keys) {
+  $doc = $convertedDocs[$key]
+
+  $docImageMap   = New-DocImageMap -HuduImages $doc.SplitDocs.HuduImages | ForEach-Object { $_ }
+  $docArticleMap = New-DocArticleMap -SplitDocs $doc.SplitDocs -HuduBaseUrl $HuduBaseUrl
+
+  for ($i = 0; $i -lt $doc.SplitDocs.Count; $i++) {
+    Write-Host "Replacing links for article $($i) of $($doc.SplitDocs.Count) for $($doc.CompanyName)"
+
+    $sd  = $doc.SplitDocs[$i]
+    $ctx = @{
+      ImageMap   = $docImageMap
+      ArticleMap = $docArticleMap
+    }
+
+    $r = Rewrite-DocLinks -Html $sd.Article -ImageResolver $ImageResolver -LinkResolver $LinkResolver -Context $ctx
+
+    # Save rewritten HTML back
+    $doc.SplitDocs[$i] = [pscustomobject]@{
+      Title       = $sd.Title
+      Article     = $r.Html
+      HuduArticle = $sd.HuduArticle
+      HuduImages  = $sd.HuduImages
+      # Optional for logging:
+      Rewrites    = $r.Rewrites
+      Unresolved  = $r.Unresolved
+    }
+  }
+}
