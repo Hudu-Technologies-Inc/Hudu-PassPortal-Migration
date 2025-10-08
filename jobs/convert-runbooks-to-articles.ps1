@@ -66,7 +66,12 @@ if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
     Write-host "$($ConvertDocsList.count) eligible PDFS for convert."
 }
 
-$toolsPath = "$workdir\tools"
+if (-not $(test-path $PDFToHTML)){
+    write-host "pdf2html not found at $PDFToHTML"; exit 1;
+}
+
+write-host "pdf2html at $PDFToHTML"
+
 
 $tmpfolder=$(join-path "$($workdir ?? $PSScriptRoot)" "tmp")
 foreach ($folder in @($tmpfolder)) {
@@ -76,20 +81,26 @@ foreach ($folder in @($tmpfolder)) {
 
 
 $sofficePath=$(Get-LibreMSI -tmpfolder $tmpfolder)
+write-host "libreoffice sofficepath $sofficepath"
+
+
 
 $convertedDocs = @{}
 
 foreach ($a in $ConvertDocsList){
-    $Keyname = Get-Safefilename -Name "$($a.Name -replace ".","-")".trim()
+    $Keyname = Get-Safefilename -Name "$([System.IO.Path]::GetFileNameWithoutExtension($a.Name))".trim()
     $extractPath = "$tmpfolder\$Keyname"
     if (!(Test-Path -Path "$extractPath")) { New-Item "$extractPath" -ItemType Directory }; Get-ChildItem -Path "$extractPath" -File -Recurse -Force | Remove-Item -Force;
     try {
-        $HTMLoutput = Convert-PdfToSlimHtml -InputpdfPath $a.FullName -OutputDir $extractPath -pdf2htmlpath
-
+        $HTMLoutput = Convert-PdfToSlimHtml -InputPdfPath $a.FullName -OutputDir $extractPath -PdfToHtmlPath $PDFToHTML
+        $convertedDocs[$keyName]=@{
+            ConvertedHTML=$HTMLoutput
+            ExtractedImages=$($(Get-ChildItem -Path (Join-Path $extractPath '*') -Recurse -File -Include `
+                *.png, *.jpg, *.jpeg, *.gif, *.bmp, *.tif, *.tiff, *.webp, *.heic, *.heif, *.svg, *.ico, *.avif, *.psd `
+                | Select-Object -ExpandProperty FullName) ?? @())
+            ExtractPath = $extractPath
+        }
     } catch {
-        Write-Error "Error during slim convert-"
-        Convert-PdfToSlimHtml
+        Write-Error "Error during slim convert- $_"
     }
-
-
 }
