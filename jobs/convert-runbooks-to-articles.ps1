@@ -147,33 +147,38 @@ foreach ($key in $convertedDocs.Keys) {
   }
 
   $doc['SplitDocs']   = @()
-  $HuduImages = @()
-    $existingRelatedImages = Get-Huduuploads | where-object {$_.uploadable_type -eq "Company" -and $_.uploadable_id -eq $matchedCompany.Id}
-    foreach ($ImageFile in $doc.ExtractedImages){
-        $existingUpload = $null
-        $ImagefileName = "$([IO.Path]::GetFileName($ImageFile))".trim
-        $existingupload = $existingRelatedImages | where-object {$_.name -eq $ImagefileName} | select-object -first 1
-        $existingupload = $existingupload ?? ($existingRelatedImages | where-object {$(Test-Equiv -A $_.name -B $ImagefileName)} | select-object -first 1)
-        $existingupload = $existingupload.upload ?? $existingupload
-        if ($existingUpload) {
-            write-host "ExistingUpload Match $existingupload"
-        } else {
-            Write-Host "No existing upload, uploading file @ $($ImageFile)"
-            $uploaded = New-HuduUpload -FilePath $ImageFile `
-                -Uploadable_Id $matchedCompany.Id `
-                -Uploadable_Type 'Company'
-            $uploaded = $uploaded.upload ?? $uploaded
-        }
-        $usingImage = $existingUpload ?? $uploaded ?? $null
-        if ($usingImage){
-            write-host "set to use $($usingImage) for $ImageFile"
-        }
-        $HuduImages+=@{
-            OriginalFilename = $ImageFile
-            UsingImage = $usingImage
-        }
-    }
-    $doc['HuduImages'] = $HuduImages
+$HuduImages = @()
+$existingRelatedImages = Get-HuduUploads | Where-Object { $_.uploadable_type -eq 'Company' -and $_.uploadable_id -eq $matchedCompany.Id }
+
+foreach ($ImageFile in $doc.ExtractedImages) {
+  $existingUpload = $null
+  $uploaded = $null                # reset per file
+
+  $ImagefileName = ([IO.Path]::GetFileName($ImageFile)).Trim()
+
+  $existingUpload = $existingRelatedImages |
+    Where-Object { $_.name -eq $ImagefileName } | Select-Object -First 1
+  if (-not $existingUpload) {
+    $existingUpload = $existingRelatedImages |
+      Where-Object { Test-Equiv -A $_.name -B $ImagefileName } | Select-Object -First 1
+  }
+  $existingUpload = $existingUpload.upload ?? $existingUpload
+
+  if ($existingUpload) {
+    Write-Host "ExistingUpload Match $($existingUpload.name)"
+  } else {
+    Write-Host "No existing upload, uploading file @ $ImageFile"
+    $uploaded = New-HuduUpload -FilePath $ImageFile -Uploadable_Id $matchedCompany.Id -Uploadable_Type 'Company'
+    $uploaded = $uploaded.upload ?? $uploaded
+  }
+
+  $usingImage = $existingUpload ?? $uploaded
+  $HuduImages += @{
+    OriginalFilename = $ImageFile
+    UsingImage       = $usingImage
+  }
+}
+$doc['HuduImages'] = $HuduImages
 
 
   foreach ($sd in $split) {
@@ -211,14 +216,14 @@ function New-DocArticleMap {
   $map = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([System.StringComparer]::OrdinalIgnoreCase)
 
   foreach ($sd in $SplitDocs) {
-    $url = $article.article.url ?? $article.url
+    # use each split doc’s HuduArticle
+    $url = $sd.HuduArticle.article.url ?? $sd.HuduArticle.url
     if (-not $url) { continue }
 
     $t    = [string]$sd.Title
     $norm = Get-NormalizedTitle $t
     $slug = Get-TitleSlug $t
 
-    # common keys
     $keys = @(
       $t, $norm, $slug,
       "$t.html","$t.htm","$slug.html","$slug.htm",
@@ -228,8 +233,9 @@ function New-DocArticleMap {
 
     foreach ($k in $keys) { if (-not $map.ContainsKey($k)) { $map[$k] = $url } }
   }
-  return $map
+  $map
 }
+
 $LinkResolver = {
   param([string]$href, [hashtable]$ctx)
   if ([string]::IsNullOrWhiteSpace($href)) { return $null }
@@ -248,25 +254,64 @@ $LinkResolver = {
   }
   return $null
 }
+# Requires: $ctx.ImageMap is a case-insensitive dictionary keyed by leaf names (foo.png, foo)
+try { Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue } catch {}
+
+$ImageResolver = {
+  param([string]$src, [hashtable]$ctx)
+  if ([string]::IsNullOrWhiteSpace($src)) { return $null }
+
+  # already absolute web/data? keep it
+  if ($src -match '^(?i)(https?:|data:)') { return $src }
+
+  # 1) strip fragment/query, 2) URL-decode (%20 -> space), 3) normalize file:/// to Windows path
+  $raw = ($src -split '#')[0] -split '\?' | Select-Object -First 1
+  $dec = [System.Web.HttpUtility]::UrlDecode($raw)
+
+  if ($dec -match '^(?i)file:///') {
+    $dec = $dec -replace '^file:///', ''      # drop scheme
+    $dec = $dec -replace '/', '\'             # to Windows separators
+  }
+
+  # Now $dec might be C:\path\to\foo.png or a relative path ./img/foo.png
+  # Always resolve by LEAF name (what you uploaded)
+  $leaf = Split-Path -Leaf $dec
+  $base = [IO.Path]::GetFileNameWithoutExtension($leaf)
+
+  foreach ($k in @($leaf, $base)) {
+    if ($k -and $ctx.ImageMap.ContainsKey($k)) {
+      return $ctx.ImageMap[$k]
+    }
+  }
+
+  # As a last try, if it's a relative path with subfolders, also check the undecoded leaf
+  $leaf2 = Split-Path -Leaf $raw
+  $base2 = [IO.Path]::GetFileNameWithoutExtension($leaf2)
+  foreach ($k in @($leaf2, $base2)) {
+    if ($k -and $ctx.ImageMap.ContainsKey($k)) {
+      return $ctx.ImageMap[$k]
+    }
+  }
+
+  return $null
+}
+
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
 
   # Build maps
-  $allArticleImages = @()
-  foreach ($sd in $doc.SplitDocs) {
-    if ($sd.HuduImages) { $allArticleImages += $sd.HuduImages }
-  }
-  $docImageMap   = New-DocImageMap  -HuduImages $allArticleImages
-  $docArticleMap = New-DocArticleMap -SplitDocs $doc.SplitDocs -HuduBaseUrl $HuduBaseUrl
-
+# Build maps
+$docImageMap   = New-DocImageMap  -HuduImages $doc.HuduImages
+$docArticleMap = New-DocArticleMap -SplitDocs $doc.SplitDocs -HuduBaseUrl $HuduBaseUrl
   for ($i = 0; $i -lt $doc.SplitDocs.Count; $i++) {
     $sd  = $doc.SplitDocs[$i]
     $ctx = @{ ImageMap = $docImageMap; ArticleMap = $docArticleMap }
 
     $r = Rewrite-DocLinks -Html $sd.Article -ImageResolver $ImageResolver -LinkResolver $LinkResolver -Context $ctx
+$r.Unresolved | Select-Object -First 5 | Format-Table -AutoSize
 
-    "{0}: rewrote {1} refs, {2} unresolved" -f $sd.Title, $r.Rewrites.Count, $r.Unresolved.Count | Write-Host
-
+"{0}: HuduImages={1}  SplitDocs={2}" -f $key, ($doc.HuduImages.Count), ($doc.SplitDocs.Count) | Write-Host
+"{0}: ImageMap keys={1}  ArticleMap keys={2}" -f $key, ($docImageMap.Count), ($docArticleMap.Count) | Write-Host
     Set-HuduArticle -Id $sd.HuduArticle.Id -CompanyId $sd.HuduArticle.company_id -Content $r.Html
   }
 }
