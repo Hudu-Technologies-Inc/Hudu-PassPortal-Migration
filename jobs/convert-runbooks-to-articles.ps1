@@ -1,3 +1,20 @@
+# Libre Set-Up
+$portableLibreOffice=$false
+$LibreFullInstall="https://www.nic.funet.fi/pub/mirrors/documentfoundation.org/libreoffice/stable/25.8.0/win/x86_64/LibreOffice_25.8.0_Win_x86-64.msi"
+$LibrePortaInstall="https://download.documentfoundation.org/libreoffice/portable/25.2.3/LibreOfficePortable_25.2.3_MultilingualStandard.paf.exe"
+
+# Poppler Setup
+$includeHiddenText=$true
+$includeComplexLayouts=$true
+
+
+$workdir = $workdir ?? $(split-path $(resolve-path .))
+$PopplerBins=$(join-path $workdir "tools\poppler")
+$PDFToHTML=$(join-path $PopplerBins "pdftohtml.exe")
+
+. "$workdir\helpers\html.ps1"
+. "$workdir\helpers\fileconvert.ps1"
+. "$workdir\helpers\general.ps1"
 
 function Get-SafeFilename {
     param([string]$Name,
@@ -32,9 +49,9 @@ if (-not $PassportalRubooksPath -or $([string]::IsNullOrEmpty($PassportalRubooks
 }
 
 if (test-path $PassportalRubooksPath){
-    Write-host "$PassportalRunbooksPath is valid"
+    Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is valid"
 } else {
-    Write-host "$PassportalRunbooksPath is not valid"
+    Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is not valid"
     exit 1
 }
 
@@ -49,6 +66,7 @@ if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
     Write-host "$($ConvertDocsList.count) eligible PDFS for convert."
 }
 
+$toolsPath = "$workdir\tools"
 
 $tmpfolder=$(join-path "$($workdir ?? $PSScriptRoot)" "tmp")
 foreach ($folder in @($tmpfolder)) {
@@ -66,7 +84,7 @@ foreach ($a in $ConvertDocsList){
     $extractPath = "$tmpfolder\$Keyname"
     if (!(Test-Path -Path "$extractPath")) { New-Item "$extractPath" -ItemType Directory }; Get-ChildItem -Path "$extractPath" -File -Recurse -Force | Remove-Item -Force;
     try {
-
+        $HTMLoutput = Convert-PdfToSlimHtml -InputpdfPath $a.FullName -OutputDir $extractPath -pdf2htmlpath
 
     } catch {
         Write-Error "Error during slim convert-"

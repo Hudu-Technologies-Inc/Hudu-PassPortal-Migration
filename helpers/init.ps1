@@ -1,13 +1,3 @@
-# Libre Set-Up
-$portableLibreOffice=$false
-$LibreFullInstall="https://www.libreoffice.org/donate/dl/win-x86_64/25.2.4/en-US/LibreOffice_25.2.4_Win_x86-64.msi"
-$LibrePortaInstall="https://download.documentfoundation.org/libreoffice/portable/25.2.3/LibreOfficePortable_25.2.3_MultilingualStandard.paf.exe"
-
-# Poppler Setup
-$includeHiddenText=$true
-$includeComplexLayouts=$true
-$PopplerBins=$(join-path $project_workdir "tools\poppler")
-$PDFToHTML=$(join-path $PopplerBins "pdftohtml.exe")
 
 # Define and set up some paths
 $logsFolder=$(join-path "$workdir" "logs")
