@@ -1,104 +1,139 @@
 using namespace System.Text.RegularExpressions
 
-# <img|embed|a|iframe|source|video|audio ...>
-$Script:RxTag = [Regex]::new(@'
-<(img|embed|a|iframe|source|video|audio)\b(?<attrs>[^>]*)>
-'@,
-  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
-)
-
-# src|href|data|poster="..."/'...'
-$Script:RxAttr = [Regex]::new(@'
-\b(?<name>src|href|data|poster)\s*=\s*(?<q>["'])(?<val>.*?)\k<q>
-'@,
-  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
-)
-
-# style="...url(...)"    (first grab the whole style attr)
-$Script:RxStyleAttr = [Regex]::new(@'
-\bstyle\s*=\s*(["'])(?<style>.*?)\1
-'@,
-  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
-)
-
-# url(...) inside a style string
-$Script:RxCssUrl = [Regex]::new(@'
-url\(\s*(["']?)(?<u>[^)"']+)\1\s*\)
-'@,
-  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
-)
-function Get-NormalizedTitle {
-  param([string]$s)
-  if ([string]::IsNullOrWhiteSpace($s)) { return '' }
-  $s = [System.Web.HttpUtility]::HtmlDecode($s)
-  $s = $s -replace '\s+', ' '
-  $s = $s.Trim()
-  $s.ToLowerInvariant()
-}
-
-function Rewrite-DocLinks {
+function Split-FullHtmlIntoArticles {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory)][string]$Html,
-    [Parameter(Mandatory)][scriptblock]$ImageResolver, # param([string]$src,[hashtable]$ctx)->[string] or $null
-    [Parameter(Mandatory)][scriptblock]$LinkResolver,  # param([string]$href,[hashtable]$ctx)->[string] or $null
-    [hashtable]$Context = @{}
+    [Parameter(Mandatory)][string]$Path,
+    [string]$CompanyHint,
+    [switch]$IncludeToc,   # include Table of Contents / Outline chunks if set
+    [switch]$AsObjects,
+    [switch]$AsHtml
   )
 
-  $rewrites  = New-Object System.Collections.Generic.List[object]
-  $unresolved = New-Object System.Collections.Generic.List[object]
+  $html = [IO.File]::ReadAllText($Path)
 
-  $html1 = $Script:RxTag.Replace($Html, {
-    param([Match]$m)
-    $tagName = $m.Groups[1].Value.ToLowerInvariant()
-    $attrs   = $m.Groups['attrs'].Value
+  # Regex objects
+  $rxHr       = [Regex]::new('<hr\s*/?>', [RegexOptions]::IgnoreCase)
+  $rxBr       = [Regex]::new('<br\s*/?>', [RegexOptions]::IgnoreCase)
+  $rxTags     = [Regex]::new('<[^>]+>', [RegexOptions]::Singleline)
+  $rxNbsp     = [Regex]::new('&#160;|&nbsp;', [RegexOptions]::IgnoreCase)
+  $rxNumLine  = [Regex]::new('^\s*\d+(\.\d+)*\s*$', [RegexOptions]::None)
+  $rxFooterTxt= [Regex]::new('^\s*(?:Titanium|IgnoreThis)\s*\|\s*(?<co>.+?)\s*$', [RegexOptions]::IgnoreCase)
+  $rxFooterHtml=[Regex]::new('(?is)\s*(?:Titanium|IgnoreThis)\s*(?:&#160;|&nbsp;|\s)*\|\s*(?<co>[^<]+)\s*<br\s*/?>\s*$', [RegexOptions]::IgnoreCase)
+  $rxOutlineH = [Regex]::new('(?is)<h1[^>]*>\s*(?:Document\s+Outline|Table\s+of\s+Contents)\s*</h1>', [RegexOptions]::IgnoreCase)
 
-    $newAttrs = $Script:RxAttr.Replace($attrs, {
-      param([Match]$ma)
-      $name = $ma.Groups['name'].Value.ToLowerInvariant()
-      $q    = $ma.Groups['q'].Value
-      $val  = $ma.Groups['val'].Value
-
-      $newVal = if ($name -eq 'href') { & $LinkResolver $val $Context } else { & $ImageResolver $val $Context }
-
-      if ($newVal -and $newVal -ne $val) {
-        $rewrites.Add([pscustomobject]@{ Tag=$tagName; Attr=$name; From=$val; To=$newVal }) | Out-Null
-        return "$name=$q$newVal$q"
-      } else {
-        if (-not $newVal) { $unresolved.Add([pscustomobject]@{ Tag=$tagName; Attr=$name; Value=$val }) | Out-Null }
-        return $ma.Value
-      }
-    })
-    "<$tagName$newAttrs>"
-  })
-
-  $html2 = $Script:RxStyleAttr.Replace($html1, {
-    param([Match]$m)
-    $q     = $m.Groups[1].Value
-    $style = $m.Groups['style'].Value
-
-    $newStyle = $Script:RxCssUrl.Replace($style, {
-      param([Match]$mu)
-      $u    = $mu.Groups['u'].Value
-      $newU = & $ImageResolver $u $Context
-      if ($newU -and $newU -ne $u) {
-        $rewrites.Add([pscustomobject]@{ Tag='style'; Attr='url'; From=$u; To=$newU }) | Out-Null
-        return "url($newU)"
-      } else {
-        if (-not $newU) { $unresolved.Add([pscustomobject]@{ Tag='style'; Attr='url'; Value=$u }) | Out-Null }
-        return $mu.Value
-      }
-    })
-    " style=$q$newStyle$q"
-  })
-
-  [pscustomobject]@{
-    Html       = $html2
-    Rewrites   = $rewrites
-    Unresolved = $unresolved
+  # Split on <hr/>
+  $rawChunks = @()
+  $last = 0
+  foreach ($m in $rxHr.Matches($html)) {
+    $len = $m.Index - $last
+    if ($len -gt 0) { $rawChunks += ,$html.Substring($last, $len) }
+    $last = $m.Index + $m.Length
   }
-}
+  if ($last -lt $html.Length) { $rawChunks += ,$html.Substring($last) }
+  if ($rawChunks.Count -eq 0) { if ($AsObjects -or $AsHtml) { return @() } else { return '[]' } }
 
+  function Get-TextLines([string]$raw, [Regex]$rxNbsp, [Regex]$rxBr, [Regex]$rxTags) {
+    $tmp = $rxNbsp.Replace($raw, ' ')
+    $tmp = $rxBr.Replace($tmp, "`n")
+    $tmp = $tmp -replace '\r',''
+    $textOnly = $rxTags.Replace($tmp, '')
+    ($textOnly -split "`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+  }
+
+  function Strip-FooterAndPageNum([string]$raw, [string]$company, [Regex]$rxFooterHtml) {
+    $out = $raw
+    if ($company) { $out = $rxFooterHtml.Replace($out, '') }
+    # drop trailing pure-number <br> (common page counter)
+    $out = [Regex]::new('(?is)\s*<br\s*/?>\s*$').Replace(
+      [Regex]::new('(?is)\s*<p[^>]*>\s*\d+(\.\d+)*\s*</p>\s*$').Replace($out, ''), ''
+    )
+    $out
+  }
+
+  # Infer company (footer majority) if not provided
+  $company = $CompanyHint
+  if (-not $company) {
+    $seen = @()
+    foreach ($c in $rawChunks) {
+      $lines = Get-TextLines $c $rxNbsp $rxBr $rxTags
+      if ($lines.Count) {
+        $m = $rxFooterTxt.Match($lines[-1])
+        if ($m.Success) { $seen += $m.Groups['co'].Value.Trim() }
+      }
+    }
+    if ($seen.Count) { $company = ($seen | Group-Object | Sort-Object Count -Descending | Select-Object -First 1).Name }
+  }
+
+  # Helpers to decide headers
+  function IsFooterLine([string]$s, [Regex]$rxFooterTxt) { return $rxFooterTxt.IsMatch($s) }
+  function IsHeaderChunk {
+    param(
+      [string[]]$Lines,
+      [System.Text.RegularExpressions.Regex]$NumberLineRegex,
+      [System.Text.RegularExpressions.Regex]$FooterTextRegex,
+      [switch]$IncludeToc
+    )
+    if (-not $Lines.Count) { return $false }
+    $first = $Lines[0]
+    if ($FooterTextRegex.IsMatch($first)) { return $false }
+    if ($first -match '^(?i)(document\s+outline|table\s+of\s+contents)$' -and -not $IncludeToc) { return $false }
+    if ($NumberLineRegex.IsMatch($first)) { return $false }
+    $window = $Lines | Select-Object -Skip 1 -First 3
+    return [bool]($window | Where-Object { $NumberLineRegex.IsMatch($_) })
+  }
+
+  $articles = New-Object System.Collections.Generic.List[object]
+  $current  = $null
+
+  function Commit([ref]$curRef, [string]$company, [Regex]$rxFooterHtml) {
+    if ($null -ne $curRef.Value) {
+      $curRef.Value.Html = Strip-FooterAndPageNum $curRef.Value.Html $company $rxFooterHtml
+      $curRef.Value.Html = $curRef.Value.Html.Trim()
+      if ($curRef.Value.Title -and $curRef.Value.Html) { $curRef.Value.Html = $curRef.Value.Html.Trim(); $articles.Add($curRef.Value) }
+      $curRef.Value = $null
+    }
+  }
+
+  for ($i=0; $i -lt $rawChunks.Count; $i++) {
+    $raw   = $rawChunks[$i]
+    # Skip pure Outline/TOC blocks if requested
+    if (-not $IncludeToc -and $rxOutlineH.IsMatch($raw)) { continue }
+
+    $lines = Get-TextLines $raw $rxNbsp $rxBr $rxTags
+    $isHeader = IsHeaderChunk -Lines $lines `
+                              -NumberLineRegex $rxNumLine `
+                              -FooterTextRegex $rxFooterTxt `
+                              -IncludeToc:$IncludeToc
+    if ($isHeader) {
+      Commit ([ref]$current) $company $rxFooterHtml
+
+      # Title is first line; remove the first text run (up to first <br/>) from HTML body
+      $title   = $lines[0]
+      $bodyHtml = [Regex]::new('(?is)^\s*(?:<a[^>]*>.*?</a>\s*)?[^<]*?<br\s*/?>').Replace($raw, '', 1)
+      $bodyHtml = Strip-FooterAndPageNum $bodyHtml $company $rxFooterHtml
+
+      $current = [pscustomobject]@{
+        Company = $company
+        Title   = $title
+        Html    = $bodyHtml
+      }
+    }
+    else {
+      if ($null -eq $current) { continue } # ignore preface blobs before first header
+      $append = Strip-FooterAndPageNum $raw $company $rxFooterHtml
+      if ($append.Trim()) {
+        $current.Html += "`r`n<hr/>`r`n" + $append
+      }
+    }
+  }
+
+  Commit ([ref]$current) $company $rxFooterHtml
+
+  if ($AsObjects) { return $articles }
+  elseif ($AsHtml) { return ($articles | ForEach-Object { "<!-- $($_.Company) | $($_.Title) -->`n$($_.Html)" }) -join "`n`n" }
+  else { return ($articles | ConvertTo-Json -Depth 10) }
+}
 function Get-SimilaritySafe { param([string]$A,[string]$B)
     if ([string]::IsNullOrWhiteSpace($A) -or [string]::IsNullOrWhiteSpace($B)) { return 0.0 }
     Get-Similarity $A $B
@@ -225,31 +260,51 @@ function Get-ReplacementUrl {
 # Build maps for a single $doc
 function New-DocImageMap {
   param([Parameter(Mandatory)][object[]]$HuduImages)
-  $map = @{}
+
+  # Case-insensitive dictionary
+  $map = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([System.StringComparer]::OrdinalIgnoreCase)
+
   foreach ($h in $HuduImages) {
-    $orig = [string](Split-Path -Leaf $h.OriginalFilename)
-    $url  = $h.UsingImage.url ?? $h.UsingImage.public_url ?? $h.UsingImage.file_url ?? $h.UsingImage.cdn_url
-    if ($orig -and $url) { $map[$orig] = $url }
+    $origFull = [string]$h.OriginalFilename
+    $url      = $h.UsingImage.url ?? $h.UsingImage.public_url ?? $h.UsingImage.file_url ?? $h.UsingImage.cdn_url
+    if (-not $origFull -or -not $url) { continue }
+
+    # primary keys
+    $leaf     = Split-Path -Leaf $origFull
+    $base     = [IO.Path]::GetFileNameWithoutExtension($leaf)
+
+    # add common forms
+    foreach ($k in @($leaf, $base, [uri]::EscapeDataString($leaf), [uri]::EscapeDataString($base))) {
+      if ($k -and -not $map.ContainsKey($k)) { $map[$k] = $url }
+    }
   }
-  $map
+  return $map
 }
 
 function New-DocArticleMap {
-  param(
-    [Parameter(Mandatory)][object[]]$SplitDocs,  # each has Title, HuduArticle
-    [string]$HuduBaseUrl
-  )
-  $map = @{}
+  param([Parameter(Mandatory)][object[]]$SplitDocs, [string]$HuduBaseUrl)
+
+  $map = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([System.StringComparer]::OrdinalIgnoreCase)
+
   foreach ($sd in $SplitDocs) {
-    $url = $sd.HuduArticle.url
+    $url = $sd.HuduArticle.article.url ?? $sd.HuduArticle.url
     if (-not $url) { continue }
+
     $t    = [string]$sd.Title
     $norm = Get-NormalizedTitle $t
     $slug = Get-TitleSlug $t
-    $keys = @($t, $norm, $slug) | Where-Object { $_ }
+
+    # common keys
+    $keys = @(
+      $t, $norm, $slug,
+      "$t.html","$t.htm","$slug.html","$slug.htm",
+      ($t -replace '\s+','_') + '.html',
+      ($t -replace '\s+','_') + '.htm'
+    ) | Where-Object { $_ }
+
     foreach ($k in $keys) { if (-not $map.ContainsKey($k)) { $map[$k] = $url } }
   }
-  $map
+  return $map
 }
 function Get-NormalizedTitle {
   param([string]$s)

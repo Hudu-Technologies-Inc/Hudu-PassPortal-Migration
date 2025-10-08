@@ -614,43 +614,17 @@ function Get-EmbeddedFilesFromHtml {
 }
 
 # TODO: DRY this up later.
-function Convert-PdfToSlimHtml {
-    param (
-        [Parameter(Mandatory)][string]$InputPdfPath,
-        [string]$OutputDir = (Split-Path -Path $InputPdfPath),
-        [string]$PdfToHtmlPath = "C:\tools\poppler\bin\pdftohtml.exe"
-    )
-
-    if (-not (Test-Path $InputPdfPath)) {
-        throw "PDF not found: $InputPdfPath"
-    }
-
-    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($InputPdfPath)
-    $xmlOutput = Join-Path $OutputDir "$baseName.xml"
-    $htmlOutput = Join-Path $OutputDir "$baseName.slim.html"
-
-    $args = @(
-        "-xml"            # XML format
-        "-p"              # Extract images
-        "-zoom", "1.0"    # No zoom distortion
-        "-noframes"       # Single output file
-        "-nomerge"        # Keep layout simple
-        "-enc", "UTF-8"
-        "-nodrm"
-        "`"$InputPdfPath`"",
-        "`"$xmlOutput`""
-    )
-
-    # Run conversion to XML
-    Start-Process -FilePath $PdfToHtmlPath -ArgumentList $args -NoNewWindow -Wait
-
-    if (-not (Test-Path $xmlOutput)) {
-        throw "XML output was not created."
-    }
-
-    # Convert XML to lightweight HTML
-    Convert-PdfXmlToHtml -XmlPath $xmlOutput -OutputHtmlPath $htmlOutput
-    return $htmlOutput
+function Convert-PdfToHtml {
+  param(
+    [Parameter(Mandatory)][string]$InputPdfPath,
+    [Parameter(Mandatory)][string]$OutputDir,
+    [string]$PdftoHtmlPath = "$PSScriptRoot\tools\poppler\pdftohtml.exe"
+  )
+  if (-not (Test-Path $OutputDir)) { New-Item -ItemType Directory -Path $OutputDir | Out-Null }
+  $outHtml = Join-Path $OutputDir ( [IO.Path]::GetFileNameWithoutExtension($InputPdfPath) + '.html' )
+  $args = @('-s','-noframes','-enc','UTF-8','-c','-fmt','png', $InputPdfPath, $outHtml)
+  Start-Process -FilePath $PdftoHtmlPath -ArgumentList $args -NoNewWindow -Wait
+  return $outHtml
 }
 
 function Convert-PdfXmlToHtml {

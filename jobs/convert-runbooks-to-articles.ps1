@@ -7,6 +7,8 @@ $LibrePortaInstall="https://download.documentfoundation.org/libreoffice/portable
 $includeHiddenText=$true
 $includeComplexLayouts=$true
 
+# for testing
+$SingleDocumentTest = $true
 
 $workdir = $workdir ?? $(split-path $(resolve-path .))
 $PopplerBins=$(join-path $workdir "tools\poppler")
@@ -114,6 +116,7 @@ foreach ($a in $ConvertDocsList){
     } catch {
         Write-Error "Error during slim convert- $_"
     }
+    if ($true -eq $SingleDocumentTest){break}
 }
 
 write-host "Successfully converted $($convertedDocs.count) runbook docs. Now to specially parse them into individual docs."
@@ -123,14 +126,17 @@ $allHududocuments = Get-HuduArticles
 
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
-  $split = Split-HtmlIntoArticles -Path $doc.HtmlPath -AsObjects
-  $matchedCompany = $null  
-    $matchedCompany = $huduCompanies | where-object {
-        ($_.name -eq $company) -or
-        [bool]$(Test-Equiv -A $_.name -B "*$($company)*") -or
-        [bool]$(Test-Equiv -A $_.nickname -B "*$($company)*")} | Select-Object -First 1
+  $companyHint = [IO.Path]::GetFileName($doc.extractPath.TrimEnd('\'))
+  $split = Split-FullHtmlIntoArticles -Path $doc.HtmlPath -AsObjects -CompanyHint $companyHint
+  $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
 
-    $matchedCompany = $matchedCompany ?? (Get-HuduCompanies -Name $company | Select-Object -First 1)
+  $matchedCompany = $null  
+    $matchedCompany = $huduCompanies | where-object {$_.name -eq $doc['CompanyName']}
+    $matchedCompany = $matchedCompany ?? $($huduCompanies | where-object {
+        [bool]$(Test-Equiv -A $_.name -B "$($doc['CompanyName'])") -or
+        [bool]$(Test-Equiv -A $_.nickname -B "$($doc['CompanyName'])")} | Select-Object -First 1)
+
+    $matchedCompany = $matchedCompany ?? (Get-HuduCompanies -Name $($doc['CompanyName']) | Select-Object -First 1)
 
   if ($matchedCompany){
     $doc["HuduCompany"]=$matchedCompany
@@ -140,7 +146,6 @@ foreach ($key in $convertedDocs.Keys) {
     continue
   }
 
-  $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
   $doc['SplitDocs']   = @()
   $HuduImages = @()
     $existingRelatedImages = Get-Huduuploads | where-object {$_.uploadable_type -eq "Company" -and $_.uploadable_id -eq $matchedCompany.Id}
@@ -187,7 +192,7 @@ foreach ($key in $convertedDocs.Keys) {
     elseif ($matchedDocument){Write-Host "Matched exist article $($matchedDocument.id)"}
     $articleUsed = $matchedDocument ?? $newDocument ?? $null
     if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
-    Write-Host "Checking for or creating existing image embeds"
+    Write-Host "Article and Uploads are complete"
 
 
     $doc['SplitDocs'] += [pscustomobject]@{
@@ -200,64 +205,68 @@ foreach ($key in $convertedDocs.Keys) {
 
 Write-Host "All Articles created or stubbed; time to rewrite image sources and anchors"
 
-$ImageResolver = {
-  param([string]$src, [hashtable]$ctx)
-  if ([string]::IsNullOrWhiteSpace($src)) { return $null }
-  if ($src -match '^(?i)(https?:|data:)') { return $src }
+function New-DocArticleMap {
+  param([Parameter(Mandatory)][object[]]$SplitDocs, [string]$HuduBaseUrl)
 
-  $leaf = Split-Path -Leaf $src
-  if ($ctx.ImageMap.ContainsKey($leaf)) { return $ctx.ImageMap[$leaf] }
+  $map = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([System.StringComparer]::OrdinalIgnoreCase)
 
-  # Sometimes exports reference "file:///C:/.../foo.png" or "./img/foo.png"
-  $try = $leaf
-  if ($ctx.ImageMap.ContainsKey($try)) { return $ctx.ImageMap[$try] }
+  foreach ($sd in $SplitDocs) {
+    $url = $article.article.url ?? $article.url
+    if (-not $url) { continue }
 
-  return $null
+    $t    = [string]$sd.Title
+    $norm = Get-NormalizedTitle $t
+    $slug = Get-TitleSlug $t
+
+    # common keys
+    $keys = @(
+      $t, $norm, $slug,
+      "$t.html","$t.htm","$slug.html","$slug.htm",
+      ($t -replace '\s+','_') + '.html',
+      ($t -replace '\s+','_') + '.htm'
+    ) | Where-Object { $_ }
+
+    foreach ($k in $keys) { if (-not $map.ContainsKey($k)) { $map[$k] = $url } }
+  }
+  return $map
 }
-
 $LinkResolver = {
   param([string]$href, [hashtable]$ctx)
   if ([string]::IsNullOrWhiteSpace($href)) { return $null }
-  if ($href -match '^(?i)https?:') { return $href }    # already absolute; leave
-  if ($href.StartsWith('#')) { return $null }          # in-doc anchors (optional)
+  if ($href -match '^(?i)https?:') { return $href }
+  if ($href.StartsWith('#')) { return $null }
 
-  $leaf     = Split-Path -Leaf $href
+  $raw  = $href.Split('#')[0].Split('?')[0]
+  try { Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue } catch {}
+  $leaf     = Split-Path -Leaf ([System.Web.HttpUtility]::UrlDecode($raw))
   $leafNoEx = [IO.Path]::GetFileNameWithoutExtension($leaf)
   $norm     = Get-NormalizedTitle $leafNoEx
   $slug     = Get-TitleSlug $leafNoEx
 
-  foreach ($k in @($leafNoEx,$norm,$slug)) {
+  foreach ($k in @($leaf, $leafNoEx, $norm, $slug, "$leafNoEx.html", "$leafNoEx.htm", "$slug.html", "$slug.htm")) {
     if ($k -and $ctx.ArticleMap.ContainsKey($k)) { return $ctx.ArticleMap[$k] }
   }
   return $null
 }
-
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
 
-  $docImageMap   = New-DocImageMap -HuduImages $doc.SplitDocs.HuduImages | ForEach-Object { $_ }
+  # Build maps
+  $allArticleImages = @()
+  foreach ($sd in $doc.SplitDocs) {
+    if ($sd.HuduImages) { $allArticleImages += $sd.HuduImages }
+  }
+  $docImageMap   = New-DocImageMap  -HuduImages $allArticleImages
   $docArticleMap = New-DocArticleMap -SplitDocs $doc.SplitDocs -HuduBaseUrl $HuduBaseUrl
 
   for ($i = 0; $i -lt $doc.SplitDocs.Count; $i++) {
-    Write-Host "Replacing links for article $($i) of $($doc.SplitDocs.Count) for $($doc.CompanyName)"
-
     $sd  = $doc.SplitDocs[$i]
-    $ctx = @{
-      ImageMap   = $docImageMap
-      ArticleMap = $docArticleMap
-    }
+    $ctx = @{ ImageMap = $docImageMap; ArticleMap = $docArticleMap }
 
     $r = Rewrite-DocLinks -Html $sd.Article -ImageResolver $ImageResolver -LinkResolver $LinkResolver -Context $ctx
 
-    # Save rewritten HTML back
-    $doc.SplitDocs[$i] = [pscustomobject]@{
-      Title       = $sd.Title
-      Article     = $r.Html
-      HuduArticle = $sd.HuduArticle
-      HuduImages  = $sd.HuduImages
-      # Optional for logging:
-      Rewrites    = $r.Rewrites
-      Unresolved  = $r.Unresolved
-    }
+    "{0}: rewrote {1} refs, {2} unresolved" -f $sd.Title, $r.Rewrites.Count, $r.Unresolved.Count | Write-Host
+
+    Set-HuduArticle -Id $sd.HuduArticle.Id -CompanyId $sd.HuduArticle.company_id -Content $r.Html
   }
 }
