@@ -1,14 +1,9 @@
-# Libre Set-Up
-$portableLibreOffice=$false
-$LibreFullInstall="https://www.nic.funet.fi/pub/mirrors/documentfoundation.org/libreoffice/stable/25.8.0/win/x86_64/LibreOffice_25.8.0_Win_x86-64.msi"
-$LibrePortaInstall="https://download.documentfoundation.org/libreoffice/portable/25.2.3/LibreOfficePortable_25.2.3_MultilingualStandard.paf.exe"
-
 # Poppler Setup
 $includeHiddenText=$true
 $includeComplexLayouts=$true
 
 # for testing
-$SingleDocumentTest = $false
+# $SingleDocumentTest = $false
 
 $workdir = $workdir ?? $(split-path $(resolve-path .))
 $PopplerBins=$(join-path $workdir "tools\poppler")
@@ -43,7 +38,7 @@ function Get-SafeFilename {
 }
 
 if (-not $PassportalDocsConvert -or -not $true -eq $PassportalDocsConvert){
-    Write-host "Not set to convert passportal"; Exit 0;
+    Write-host "Not set to convert passportal";x Exit 0;
 }
 
 if (-not $PassportalRubooksPath -or $([string]::IsNullOrEmpty($PassportalRubooksPath))){
@@ -143,7 +138,9 @@ foreach ($key in $convertedDocs.Keys) {
   } else {
     Write-Host "Could not match $key to company. creating"
     $createdcompany = New-HuduCompany -Name "$($companyHint ?? $doc["CompanyName"])".Trim()
-    $matchedcompany = Get-HuduCompany -id $createdcompany.id
+    $matchedcompany = Get-HuduCompanies -id $createdcompany.id 
+    $matchedcompany = $matchedCompany ?? $(Get-HuduCompanies -name "$($companyHint ?? $doc["CompanyName"])".Trim() | select-object -first 1)
+    
     $matchedCompany = $matchedCompany.company ?? $matchedCompany
     write-host "created company $($matchedCompany)"
     $doc["HuduCompany"]=$matchedCompany

@@ -658,6 +658,45 @@ function Convert-PdfXmlToHtml {
     Set-Content -Path $OutputHtmlPath -Value ($html -join "`n") -Encoding UTF8
     write-host  "Generated slim HTML: $OutputHtmlPath" -Color Green
 }
+
+function Convert-PdfToSlimHtml {
+    param (
+        [Parameter(Mandatory)][string]$InputPdfPath,
+        [string]$OutputDir = (Split-Path -Path $InputPdfPath),
+        [string]$PdfToHtmlPath = "C:\tools\poppler\bin\pdftohtml.exe"
+    )
+
+    if (-not (Test-Path $InputPdfPath)) {
+        throw "PDF not found: $InputPdfPath"
+    }
+
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($InputPdfPath)
+    $xmlOutput = Join-Path $OutputDir "$baseName.xml"
+    $htmlOutput = Join-Path $OutputDir "$baseName.slim.html"
+
+    $args = @(
+        # "-xml"            # XML format
+        "-p"              # Extract images
+        "-zoom", "1.0"    # No zoom distortion
+        "-noframes"       # Single output file
+        "-nomerge"        # Keep layout simple
+        "-enc", "UTF-8"
+        "-nodrm"
+        "`"$InputPdfPath`"",
+        "`"$htmlOutput`""
+    )
+
+    # # Run conversion to XML
+    Start-Process -FilePath $PdfToHtmlPath -ArgumentList $args -NoNewWindow -Wait
+
+    # if (-not (Test-Path $xmlOutput)) {
+    #     throw "XML output was not created."
+    # }
+
+    # Convert XML to lightweight HTML
+    # Convert-PdfXmlToHtml -XmlPath $xmlOutput -OutputHtmlPath $htmlOutput
+    return $htmlOutput
+}
 function Convert-PdfToHtml {
     param (
         [string]$inputPath,

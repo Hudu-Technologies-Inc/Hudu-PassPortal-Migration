@@ -12,6 +12,7 @@ Easy Migration from SolarWinds Passportal to Hudu
 - Passportal and Passportal API key/Secret
 - Powershell 7.5.1 or later
 - CSV exports for Passwords should be placed in the .\csv-exports directory within project folder
+- If you are splitting+migrating large Runbook Exports (as pdf), place those 
 
 ### Terminology
 
