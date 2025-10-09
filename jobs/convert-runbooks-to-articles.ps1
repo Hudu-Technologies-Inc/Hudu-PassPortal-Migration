@@ -137,13 +137,16 @@ foreach ($key in $convertedDocs.Keys) {
         [bool]$(Test-Equiv -A $_.nickname -B "$($doc['CompanyName'])")} | Select-Object -First 1)
 
     $matchedCompany = $matchedCompany ?? (Get-HuduCompanies -Name $($doc['CompanyName']) | Select-Object -First 1)
-
   if ($matchedCompany){
     $doc["HuduCompany"]=$matchedCompany
     Write-Host "$($key) attributed to company $($matchedCompany.name) in Hudu."
   } else {
-    Write-Host "Could not match $key to company. skipping"
-    continue
+    Write-Host "Could not match $key to company. creating"
+    $createdcompany = New-HuduCompany -Name "$($companyHint ?? $doc["CompanyName"])".Trim()
+    $matchedcompany = Get-HuduCompany -id $createdcompany.id
+    $matchedCompany = $matchedCompany.company ?? $matchedCompany
+    write-host "created company $($matchedCompany)"
+    $doc["HuduCompany"]=$matchedCompany
   }
 
   $doc['SplitDocs']   = @()

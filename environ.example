@@ -4,7 +4,7 @@ $huduBaseURL = "your-hudu-url.huducloud.com"
 $HuduAPIKey = "hudu api key"
 $passportalData_APIkey="secret key here"
 $passportalData_APIkeyId="key id here"
-$PassportalRubooksPath = "C:\tmp\Titan-PassPortal"
+$PassportalRubooksPath = "C:\tmp\RunbooksFolder"
 $PassportalDocsConvert = $true
 $SelectedLocation = @{APIBase="us-clover"; name="United States"}
 . .\Passportal-Migration.ps1
