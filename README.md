@@ -15,8 +15,6 @@ Easy Migration from SolarWinds Passportal to Hudu
 > **Permissions Notice**
 >
 > Some scripts may require elevated permissions. If you encounter access-related errors, consider launching PowerShell (`pwsh`) with **Run as Administrator**.
->
-> Please note that administrative privileges do not override Windows Rights Management or similarly enforced file protection mechanisms.
 
 ### Terminology
 
