@@ -31,9 +31,16 @@ To set up everything you need in passportal, you can **first log in**, **then na
 
 You'll then click `Create Access Key`. **Take note of both values, as it will only show you the secret once.**
 
-You'll place your exported CSVs from Passportal in `.\exported-csvs\*`. This is required if you want to import passwords using this utility, since passwords are not available/exposed-to the Passportal API at present. While not including headers in your CSV export should be fine and is handled, you're encouraged to opt for including headers.
+This is required if you want to import passwords using this utility, since passwords are not available/exposed-to the Passportal API at present. While not including headers in your CSV export should be fine and is handled, you're encouraged to opt for including headers.
+Exports can be initiated from `Options` Menu under `Import / Export` subitem. These need to be initiated one-at-a-time and placed in a safe place. Be sure to export all four CSV files and ensure that 'include TOTP secret' is enabled.
 
-<img width="295" height="94" alt="image" src="https://github.com/user-attachments/assets/c70c9d0a-fc7f-42e4-bdf3-324507cc7d1d" />
+<img width="570" height="602" alt="image" src="https://github.com/user-attachments/assets/83243c3a-4de2-4a3f-a9bc-78b7a61f8944" /> <img width="892" height="858" alt="image" src="https://github.com/user-attachments/assets/4ef3b117-453f-499f-bf6c-7c84efc48230" /> <img width="401" height="503" alt="image" src="https://github.com/user-attachments/assets/e814b04e-74f3-4c26-b193-7408e2f46177" />
+
+You'll place your exported CSVs together in a folder, as noted in your environment file as the variable, called `csvPath`. If it doesnt appear to exist or contain CSVs, we'll ask for an updated path. You'll want to place these in a folder on their own, without anything but those exported CSV files.
+
+<img width="284" height="105" alt="image" src="https://github.com/user-attachments/assets/52eec87b-00f5-43c1-b0f6-0f08bd32b325" />
+
+
 
 ### Setup Runbooks Exports
 
