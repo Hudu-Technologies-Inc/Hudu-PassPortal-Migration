@@ -97,8 +97,8 @@ Set-IncrementedState -newState "Calculate and Relay Results"
 
 # Set-IncrementedState -newState "Import and match websites from SSL data"
 Set-IncrementedState -newState "Wrap-Up, and Unsetting $($sensitiveVars.count) sensitive vars"
-foreach ($var in $sensitiveVars) {
-    Set-PrintAndLog -message  "Unset Sensitive Var $var"
-    Unset-Vars -varname $var
-}
+# foreach ($var in $sensitiveVars) {
+#     Set-PrintAndLog -message  "Unset Sensitive Var $var"
+#     Unset-Vars -varname $var
+# }
 
