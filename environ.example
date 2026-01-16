@@ -1,10 +1,10 @@
 
-$workdir = $PSScriptRoot
 $huduBaseURL = "your-hudu-url.huducloud.com"
 $HuduAPIKey = "hudu api key"
-$passportalData_APIkey="secret key here"
-$passportalData_APIkeyId="key id here"
+$passportalData_APIkeyID="secret key here"
+$PassportalData_SecretKey="key id here"
 $PassportalRubooksPath = "C:\tmp\RunbooksFolder"
 $PassportalDocsConvert = $true
 $SelectedLocation = @{APIBase="us-clover"; name="United States"}
+$csvPath = "" your absolute path to csv export files
 . .\Passportal-Migration.ps1
