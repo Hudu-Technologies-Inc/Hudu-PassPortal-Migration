@@ -4,6 +4,7 @@ $includeComplexLayouts=$true
 $PassportalDocsConvert = $PassportalDocsConvert ?? $false
 # for testing
 # $SingleDocumentTest = $false
+$RBStartTime = Get-Date
 
 $workdir = $workdir ?? $(split-path $(resolve-path .))
 foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
@@ -133,7 +134,7 @@ foreach ($key in $convertedDocs.Keys) {
     $doc["HuduCompany"]=$matchedCompany
   }
 
-$doc['SplitDocs']   = @()
+  $doc['SplitDocs']   = @()
 
   foreach ($sd in $split) {
     $matchedDocument = $null
@@ -303,6 +304,8 @@ $r.Unresolved | Select-Object -First 5 | Format-Table -AutoSize
     Set-HuduArticle -Id $sd.HuduArticle.Id -CompanyId $sd.HuduArticle.company_id -Content $r.Html
   }
 }
+
+get-huduarticles -updatedAfter $RBStartTime | foreach-object {$article = $_.article ?? $_  set-huduarticle -id $article.id -name "$($article.name -replace "Articles ",'')"}
 
 $imagesFromRunbooks = ($convertedDocs.Values | % { $_.HuduImages } | ? { $_ } | Measure-Object).Count
 
