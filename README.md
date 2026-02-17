@@ -2,50 +2,124 @@
 
 Easy Migration from SolarWinds Passportal to Hudu
 
-### Prerequisites
+## Prerequisites
 
-- Hudu Instance of 2.38.0 or newer
-- Companies created in Hudu if you want to attribute sharepoint items to companies
-- Hudu API Key
-- Passportal and Passportal API key/Secret
-- Powershell 7.5.1 or later
-- CSV exports for Passwords should be placed in the .\csv-exports directory within project folder
-- If you are splitting+migrating large Runbook Exports (as pdf), place those in one central folder
+Before getting started, make sure you have the following in place:
+
+- Hudu instance **v2.38.0 or newer**
+- Companies created in Hudu (required if you want to attribute imported items to companies)
+- A Hudu API key
+- A Passportal account with an API key and secret
+- PowerShell **7.5.1 or later** on Windows Machine
+- CSV exports for **Passwords**, placed in the `./csv-exports` directory within the project folder
+- (Optional) Runbook PDF exports placed in a single, separate directory if you are migrating runbooks
 
 > **Permissions Notice**
 >
-> Some scripts may require elevated permissions. If you encounter access-related errors, consider launching PowerShell (`pwsh`) with **Run as Administrator**.
+> Some scripts may require elevated permissions. Cconsider launching PowerShell (`pwsh`) with **Run as Administrator**.
 
-### Terminology
+---
 
-Hudu uses different terminology than Passportal.
+## Terminology
 
-For example, in Hudu, a data structure that describes an asset type is called an 'Asset Layout'. In Passportal, it is called a 'doctype.'
+Hudu and Passportal use different terminology for similar concepts. A quick mapping can help avoid confusion:
 
-In Hudu, an object that represents an item that belongs to a company is called an 'Asset', whereas in Passportal, it is called a 'doc.'
+- **Asset Layout (Hudu)** → **Doctype (Passportal)**  
+  Describes the structure or schema of an asset.
 
-### Setup Passportal API Key/Secret
+- **Asset (Hudu)** → **Doc (Passportal)**  
+  Represents an item that belongs to a company.
 
-To set up everything you need in passportal, you can **first log in**, **then navigate to the `Settings`** area from the left navigation menu.
+---
+
+## Setting Up the Passportal API Key & Secret
+
+To configure Passportal access:
+
+1. Log in to Passportal.
+2. Navigate to **Settings** from the left-hand navigation menu.
+3. Click **Create Access Key**.
+
+You'll need a new environment file to store these.
+Here's a quick snippet to make a new copy of this file and edit it in Notepad. You'll want to create this file to hold your environment's configuration
+
+```
+copy .\environ.example .\myenviron.ps1
+notepad .\myenviron.ps1
+```
+
 <img width="2680" height="910" alt="image" src="https://github.com/user-attachments/assets/c587c88a-ec19-4ab0-b98d-2dd426988007" />
 
-You'll then click `Create Access Key`. **Take note of both values, as it will only show you the secret once.**
+> ⚠️ **Important**: Be sure to copy both the key and secret immediately. The secret is only shown once.
 
-You'll place your exported CSVs from Passportal in `.\exported-csvs\*`. This is required if you want to import passwords using this utility, since passwords are not available/exposed-to the Passportal API at present. While not including headers in your CSV export should be fine and is handled, you're encouraged to opt for including headers.
+---
 
-<img width="295" height="94" alt="image" src="https://github.com/user-attachments/assets/c70c9d0a-fc7f-42e4-bdf3-324507cc7d1d" />
+## Exporting Password CSVs
 
-### Setup Runbooks Exports
+Password exports can be initiated from the **Options** menu under **Import / Export**.
 
-If you'd like to parse/split Runbooks PDF documents into individual Articles, this is easy. 
+<img width="200" height="250" alt="image" src="https://github.com/user-attachments/assets/e814b04e-74f3-4c26-b193-7408e2f46177" />
 
-All you need to do is place all PDFs from Runbooks export into a given folder. When asked at the start of Passportal Migration, you can select yes to include these. This job can also be run independently from the rest, so if you want to run this seperately, you can select 'No' and do it later by dot-sourcing it from the main project directory
+- Exports must be generated **one at a time**
+- Store them in a secure location
+- Export **all four CSV files**
+- Ensure **“Include TOTP secret”** is enabled
 
-```
-c:\myusername\Documents\GitHub\Hudu-PassPortal-Migration> . .\jobs\convert-runbooks-to-articles.ps1
-```
+<img width="3614" height="1177" alt="image" src="https://github.com/user-attachments/assets/19b82f8f-7c7a-49f0-97e2-9af3a9eccc8e" />
 
-The rest is taken care of- images will be extracted and uploaded, and your runbooks will be split by title into individual articles for each company!
+### CSV Folder Structure
+
+All exported CSVs should be placed together in a single directory. This directory is referenced in your environment file using the `csvPath` variable.
+
+- The directory must contain **only** the exported CSV files
+- If the directory does not exist or contains no CSVs, the script will prompt for an updated path
+- Filenames may vary by company, and you may rename them if needed
+
+However, filenames **must include** the following keywords so the script can identify them correctly:
+
+- `Client`
+- `User`
+- `Vault`
+- `Password`
+
+<img width="210" height="80" alt="image" src="https://github.com/user-attachments/assets/7db55b3c-3ce7-4768-b502-96ca4b140243" />
+
+
+## Exporting Runbooks (Optional)
+
+Runbooks can be exported from the same **Import / Export** area in Passportal.
+
+When exporting runbooks:
+
+- Include any information you think may be useful when prompted
+- Passportal merges documents during export
+- The migration process later **splits them back into individual articles** when creating content in Hudu
+
+<img width="519" height="134" alt="image" src="https://github.com/user-attachments/assets/ee601180-4b0f-479f-90c7-087c056f62b1" />
+
+### Downloading Runbook PDFs
+
+After initiating the export, runbooks may take some time to generate.
+
+- Download all generated PDFs into a **new directory separate from your CSV exports**
+- If you are migrating runbooks, your environment file will reference **two directories**:
+  - One for CSV exports
+  - One for Runbook PDFs
+- If you are not migrating runbooks, only the CSV directory is required
+
+<img width="478" height="69" alt="image" src="https://github.com/user-attachments/assets/11a7adac-7a79-4cc9-b751-acef407bd9cf" />
+
+If you leave the page and return later:
+
+1. Navigate back to **Import / Export**
+2. Click **Generate Runbooks** again
+3. Scroll to the bottom of the page to find your available PDF downloads
+
+<img width="191" height="85" alt="image" src="https://github.com/user-attachments/assets/0bd3e7b4-014c-4fe3-b3f1-c21ec5fd3e6d" />
+
+If the downloads are not immediately visible, wait a bit longer and refresh. Once ready, links will appear for downloading the runbooks into your designated directory.
+
+<img width="688" height="421" alt="image" src="https://github.com/user-attachments/assets/ec55027f-6748-4abc-8e30-c9c8ae4ceaed" />
 
 ## Getting Started
 
@@ -123,6 +197,18 @@ Then, each of these split articles is attributed to a company and each of the ex
 Next, articles are created with nearly-blank content, so we know where all the articles are (to add links between articles sffectively)
 
 Then, we replace all the image links and web links with the ones we have just created. Then, each newly-split temporary article is updated with final contents. Easy!
+
+### Manual Runbooks Migration - 
+
+You can do this part all on it's own if needed.
+
+All you need to do is place all PDFs from Runbooks export into a given folder. When asked at the start of Passportal Migration, you can select yes to include these. This job can also be run independently from the rest, so if you want to run this seperately, you can select 'No' and do it later by dot-sourcing it from the main project directory
+
+```
+c:\myusername\Documents\GitHub\Hudu-PassPortal-Migration> . .\jobs\convert-runbooks-to-articles.ps1
+```
+
+The rest is taken care of- images will be extracted and uploaded, and your runbooks will be split by title into individual articles for each company!
 
 ### Wrap-Up
 
