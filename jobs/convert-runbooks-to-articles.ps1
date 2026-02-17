@@ -117,7 +117,7 @@ foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
   $companyHint = [IO.Path]::GetFileName($doc.extractPath.TrimEnd('\'))
   $presplit = Split-FullHtmlIntoArticles -Path $doc.HtmlPath -AsObjects -CompanyHint $companyHint
-  $split = Merge-NonArticleSplits -SplitObjects $presplit -company $companyHint
+  $split = Merge-NonArticleSplits -Articles $presplit -company $companyHint
   $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
 
   $matchedCompany = $internalCompanyForRunbooks ?? $null  
