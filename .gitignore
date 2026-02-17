@@ -26,3 +26,5 @@ tmp
 .\rbtmp*
 *\rbtmp\*
 rbtmp
+*environ*
+*envir*

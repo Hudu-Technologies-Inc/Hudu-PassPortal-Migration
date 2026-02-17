@@ -1,7 +1,7 @@
 # Poppler Setup
 $includeHiddenText=$true
 $includeComplexLayouts=$true
-$PassportalDocsConvert = $PassportalDocsConvert ?? $true
+$PassportalDocsConvert = $PassportalDocsConvert ?? $false
 # for testing
 # $SingleDocumentTest = $false
 
@@ -10,7 +10,7 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
     Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
     . $file.FullName
 }
-
+if (-not (Get-Command -Name get-hudubaseurl -ErrorAction SilentlyContinue)) { Get-PSVersionCompatible; Get-HuduModule; Set-HuduInstance; Get-HuduVersionCompatible; }
 
 if (-not $PassportalDocsConvert -or -not $true -eq $PassportalDocsConvert){
     Write-host "Not set to convert passportal"; Exit 0;
