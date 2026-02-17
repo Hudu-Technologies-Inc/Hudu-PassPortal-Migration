@@ -2,9 +2,15 @@
 $includeHiddenText=$true
 $includeComplexLayouts=$true
 $PassportalDocsConvert = $PassportalDocsConvert ?? $false
+$runbooksCompanyName = $runbooksCompanyName ?? $null
+if ([string]::IsNullOrEmpty($runbooksCompanyName)) { $internalCompanyForRunbooks = $null } else { $internalCompanyForRunbooks = get-huducompanies -name $runbooksCompanyName | select-object -first 1; $internalCompanyForRunbooks = $internalCompanyForRunbooks.company ?? $internalCompanyForRunbooks; }
 # for testing
 # $SingleDocumentTest = $false
 $RBStartTime = Get-Date
+
+if ($null -ne $internalCompanyForRunbooks){
+  write-host "using internal company $($internalCompanyForRunbooks.id) $($internalCompanyForRunbooks.name) for all runbooks"
+}
 
 $workdir = $workdir ?? $(split-path $(resolve-path .))
 foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
@@ -37,9 +43,7 @@ if (test-path $PassportalRunbooksPath){
     exit 1
 }
 
-$PreConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRunbooksPath).path -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue
-$ConvertDocsList = Merge-NonArticleSplits -Articles $PreConvertDocsList -Company $company
-
+$ConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRunbooksPath).path -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue
 
 
 if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
@@ -107,14 +111,17 @@ write-host "Successfully converted $($convertedDocs.count) runbook docs. Now to 
 $huduCompanies = Get-HuduCompanies
 $allHududocuments = Get-HuduArticles
 
+
+
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
   $companyHint = [IO.Path]::GetFileName($doc.extractPath.TrimEnd('\'))
-  $split = Split-FullHtmlIntoArticles -Path $doc.HtmlPath -AsObjects -CompanyHint $companyHint
+  $presplit = Split-FullHtmlIntoArticles -Path $doc.HtmlPath -AsObjects -CompanyHint $companyHint
+  $split = Merge-NonArticleSplits -SplitObjects $presplit -company $companyHint
   $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
 
-  $matchedCompany = $null  
-    $matchedCompany = $huduCompanies | where-object {$_.name -eq $doc['CompanyName']}
+  $matchedCompany = $internalCompanyForRunbooks ?? $null  
+    $matchedCompany = $matchedCompany ?? $($huduCompanies | where-object {$_.name -eq $doc['CompanyName']})
     $matchedCompany = $matchedCompany ?? $($huduCompanies | where-object {
         [bool]$(Test-Equiv -A $_.name -B "$($doc['CompanyName'])") -or
         [bool]$(Test-Equiv -A $_.nickname -B "$($doc['CompanyName'])")} | Select-Object -First 1)
