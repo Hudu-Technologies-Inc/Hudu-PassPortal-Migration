@@ -22,7 +22,7 @@ $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
 $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
 $passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
 $PassportalDocsConvert = $PassportalDocsConvert ?? ([bool]$(Select-ObjectFromList -message "Do you have any Runbook PDF exports to parse/split into individual articles?" -objects @("Yes","No, I don't want to move any runbooks") -allowNull $true) -eq "Yes") ?? $false
-if ($true -eq $PassportalDocsConvert){Write-Host "You are set to include Runbooks in this migration. $(if ($null -eq $PassportalRubooksPath) {'We will ask you for a path for these later'} else {"Your Rubooks path is set to $PassportalRubooksPath"})"}
+if ($true -eq $PassportalDocsConvert){Write-Host "You are set to include Runbooks in this migration. $(if ($null -eq $PassportalRunbooksPath) {'We will ask you for a path for these later'} else {"Your Rubooks path is set to $PassportalRunbooksPath"})"}
 
 
 $MatchedCompanies = @()

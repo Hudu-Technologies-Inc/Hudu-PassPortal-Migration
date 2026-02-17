@@ -299,7 +299,6 @@ if ($coEsc) {
 $badPattern = '(?ix)^\s*(?:' + ($alts -join '|') + ')\s*$'
 $rxBadTitle = [regex]::new($badPattern)
 
-  write-host "$($rxBadTitle.tostring())"
   $merged = New-Object System.Collections.Generic.List[object]
   $prev = $null
 
