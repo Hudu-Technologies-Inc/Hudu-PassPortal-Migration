@@ -2,6 +2,28 @@ function Normalize-CompanyName([string]$s) {
   # strip leading digits + optional separators like '.', ')', '-', '_' and spaces
   return ($s -replace '^\s*\d+\s*[-._)\(]*\s*', '') -replace '\s{2,}', ' '
 }
+function Strip-LeadingOutlineMarkerP([string]$pageHtml) {
+  while ($true) {
+    $m = [regex]::Match($pageHtml, '(?is)^\s*(?<p><p\b[^>]*>.*?</p>)\s*(?<rest>.*)$')
+    if (-not $m.Success) { break }
+
+    $pInner = [regex]::Replace($m.Groups['p'].Value, '(?is)^<p\b[^>]*>|</p>$', '')
+    $pText  = Normalize-TitleText (Strip-Tags $pInner)
+
+    # "1.263", "II.", "v.", "3a." (optionally with nothing else)
+    $isMarkerOnly =
+      $pText -match '^(?i)\s*\d{1,3}(?:\.\d+)*[a-z]?\s*\.?\s*$' -or
+      $pText -match '^(?i)\s*[ivxlcdm]{1,8}\s*\.?\s*$' -or
+      $pText -match '^(?i)\s*[a-z]\s*\.?\s*$'
+
+    if ($isMarkerOnly) {
+      $pageHtml = $m.Groups['rest'].Value
+      continue
+    }
+    break
+  }
+  $pageHtml
+}
 function Get-SafeFileBase {
   param([Parameter(Mandatory)][string]$Name)
   $s = $Name
@@ -18,6 +40,35 @@ function Get-SafeFileBase {
   $s = $s -replace '[\s\.]+$', ''
   if ([string]::IsNullOrWhiteSpace($s)) { $s = 'untitled' }
   return $s
+}
+function Is-IndexLine([string]$s) {
+  if (-not $s) { return $false }
+  $t = $s -replace '<[^>]+>', ''     # strip tags
+  $t = $t -replace '&#160;|&nbsp;', ' '
+  $t = ($t -replace '\s+', ' ').Trim()
+  return ($t -match '^1\.\d{1,4}(?:\.\d{1,4})?$')
+}
+
+function Is-ArticleHeaderLine([string]$s) {
+  if (-not $s) { return $false }
+  $t = $s -replace '<[^>]+>', ''
+  $t = $t -replace '&#160;|&nbsp;', ' '
+  $t = ($t -replace '\s+', ' ').Trim()
+
+  # must start with Articles (or contain it very early)
+  if ($t -notmatch '^(?i)\s*Articles\b') { return $false }
+
+  # reject known junk
+  if ($t -match '^(?i)\s*Articles\s*$') { return $false }
+  if ($t -match '^(?i)\s*Articles\s+(additional\s+(information|resources)|not\s+applicable)\s*$') { return $false }
+
+  # require some “real title” after Articles
+  $after = ($t -replace '^(?i)\s*Articles\b', '').Trim()
+  return ($after.Length -ge 8)
+}
+function Strip-Tags([string]$s) {
+  if ($null -eq $s) { return $null }
+  ([regex]::Replace($s, '(?is)<[^>]+>', '') -replace '\s+',' ').Trim()
 }
 function Split-HtmlIntoArticles {
   [CmdletBinding()]
@@ -42,6 +93,11 @@ function Split-HtmlIntoArticles {
   $rxFooter = [regex]'(?is)<p[^>]*>[^<]*\|\s*(?<co>[^<]+)\s*</p>\s*$'  # "* | Company"
 
   # Helpers
+function Strip-Tags([string]$s) {
+  if ($null -eq $s) { return $null }
+  # kill tags but keep text
+  ($s -replace '(?is)<[^>]+>', '')
+}  
   function Get-Ps([string]$block){
     ($rxPTxt.Matches($block) | ForEach-Object { $_.Groups['t'].Value.Trim() })
   }
@@ -52,6 +108,17 @@ function Split-HtmlIntoArticles {
     }
     $out
   }
+function Normalize-TitleText([string]$s) {
+  if ($null -eq $s) { return $null }
+
+  $s = $s -replace '&#160;|&nbsp;', ' '
+  $s = $s -replace '&gt;', '>' -replace '&lt;', '<' -replace '&amp;', '&'
+  $s = $s -replace '&quot;','"' -replace '&#34;','"' -replace '&#39;',"'" 
+  $s = $s -replace "[\u00A0\u2007\u202F]", ' '
+  $s = $s -replace "[\uFEFF\u200B\u200C\u200D\u2060]", ''
+  ($s -replace '\s+', ' ').Trim()
+}
+
   function Strip-TrailingPageNumber([string]$block){
     [regex]::Replace($block, '(?is)\s*<p[^>]*>\s*\d+(\.\d+)*\s*</p>\s*$', '')
   }
@@ -60,7 +127,38 @@ function Split-HtmlIntoArticles {
     $co = [regex]::Escape($company)
     [regex]::Replace($block, "(?is)\s*<p[^>]*>[^<]*\|\s*$co\s*</p>\s*$", '')
   }
+$rxOutlineMarker = [regex]'(?ix) ^
+  \s*
+  (?:
+      \d{1,3}
+    | [a-z]
+    | [ivxlcdm]{1,8}
+  )
+  \.
+  \s* $
+'
 
+# Optional: things that are clearly not titles in your export
+$rxJunkTitle = [regex]'(?ix) ^
+  \s*
+  (?:not\ applicable|n/?a|additional\ information|additional\ resources)
+  \s* \.? \s* $
+'
+$rxArticleStart = [regex]'(?isx)
+  <hr\s*/?>\s*
+  <a\s+name\s*=\s*(?<anchor>\d+)\s*></a>\s*
+  <a\s+href\s*=\s*["''][^"'']*#(?<toc>\d+)["''][^>]*>\s*Articles(?:&#160;|&nbsp;|\s)*</a>
+  \s*(?<title>.*?)\s*<br\s*/?>\s*
+  (?<idx>1\.\d{1,4}(?:\.\d{1,4})?)\s*<br\s*/?>
+'
+$rxSplit = [regex]'(?isx)
+  (?<!\w)Articles(?:&#160;|&nbsp;|\s)+
+  (?<title>[^<\r\n]{8,}?)
+  \s*
+  (?:<br\s*/?>\s*|\s{2,})
+  (?<idx>1\.\d{1,4}(?:\.\d{1,4})?)
+  \s*(?:<br\s*/?>|$)
+'
   # Collect pages
   $pageMatches = $rxPage.Matches($html)
   if ($pageMatches.Count -eq 0) {
@@ -86,59 +184,46 @@ function Split-HtmlIntoArticles {
   # we still rely on article pages that follow the {Title, Number} rule.
   $articles = New-Object System.Collections.Generic.List[object]
   $current  = $null
+  $raw = [IO.File]::ReadAllText($Path)
+  $matches = $rxArticleStart.Matches($raw)
 
-  for ($i=0; $i -lt $pages.Count; $i++) {
-    $pg     = $pages[$i]
-    $ptexts = Get-Ps $pg
-    $first  = $ptexts | Select-Object -First 1
-    $second = $ptexts | Select-Object -Skip 1 -First 1
-
-    $looksLikeTitle = (-not [string]::IsNullOrWhiteSpace($first)) -and (-not $rxNum.IsMatch($first))
-    $nextIsNumber   = ($second -and $rxNum.IsMatch($second))
-
-    if ($looksLikeTitle -and $nextIsNumber) {
-      # New article starts on this page
-      if ($null -ne $current) {
-        $current.Html = $current.Html.Trim()
-        if ($current.Title -and $current.Html) { $articles.Add($current) }
-      }
-
-      # Remove the title line from this page’s body
-      $body = Strip-FirstP $pg 1
-      $body = Strip-TrailingPageNumber $body
-      $body = Strip-Footer $body $company
-
-      $current = [pscustomobject]@{
-        Company = $company
-        Title   = $first
-        Html    = "<div class='page'>$body</div>`n"
-      }
-    }
-    else {
-      # Continuation (or preface pages before first article)
-      $body = Strip-TrailingPageNumber $pg
-      $body = Strip-Footer $body $company
-
-      if ($null -eq $current) {
-        # Buffer preface pages under a synthetic article until we hit the first real one
-        $current = [pscustomobject]@{
-          Company = $company
-          Title   = 'Preface'
-          Html    = ''
-        }
-      }
-      $current.Html += "<div class='page'>$body</div>`n"
-    }
+  if ($matches.Count -eq 0) {
+    if ($AsObjects -or $AsHtml) { return @() } else { return '[]' }
   }
 
-  # Commit last
-  if ($null -ne $current) {
-    $current.Html = $current.Html.Trim()
-    if ($current.Title -and $current.Html) { $articles.Add($current) }
+  $articles = New-Object System.Collections.Generic.List[object]
+
+  for ($i = 0; $i -lt $matches.Count; $i++) {
+    $m = $matches[$i]
+
+    # Chunk bounds: from this header to right before the next header
+    $chunkStart = $m.Index
+    $chunkEnd   = if ($i -lt $matches.Count - 1) { $matches[$i+1].Index } else { $raw.Length }
+
+    # If you want to REMOVE the header lines from Html, start after header match
+    $bodyStart = $m.Index + $m.Length
+    $htmlBody  = $raw.Substring($bodyStart, $chunkEnd - $bodyStart)
+
+    $title = Normalize-TitleText (Strip-Tags $m.Groups['title'].Value)
+    $idx   = $m.Groups['idx'].Value
+
+    # Optional: kill footer-ish "Company | Company" + page-number at the end of the chunk
+    if ($CompanyOverride) {
+      $co = [regex]::Escape($CompanyOverride)
+      $htmlBody = [regex]::Replace($htmlBody, "(?is)\s*$co\s*\|\s*$co\s*<br/>\s*\d+\s*<br/>\s*$", '')
+    }
+
+    $articles.Add([pscustomobject]@{
+      Company = $CompanyOverride
+      Title   = "Articles $title"
+      Index   = $idx
+      Html    = $htmlBody.Trim()
+      Anchor  = $m.Groups['anchor'].Value
+      Toc     = $m.Groups['toc'].Value
+    })
   }
 
   # If the first article is a 'Preface' and you don't want it, drop it:
-  $articles = [System.Collections.Generic.List[object]]($articles | Where-Object { $_.Title -ne 'Preface' })
 
   if ($AsObjects) { return $articles }
   elseif ($AsHtml) {
@@ -182,6 +267,76 @@ function Get-NormalizedExtension {
   $ext = [IO.Path]::GetExtension($name)
   if ([string]::IsNullOrEmpty($ext)) { return $null }
   return $ext.ToLowerInvariant()
+}
+function Merge-NonArticleSplits {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory)]
+    [object[]]$Articles,
+
+    [string]$Company
+  )
+
+  # Always construct regex objects (can't be $null)
+  $rxGoodTitle = [regex]::new('(?i)^\s*articles?\b')
+
+  $coEsc = if ([string]::IsNullOrWhiteSpace($Company)) { '' } else { [regex]::Escape($Company) }
+
+  # Bad "titles" that should be merged into previous
+$alts = @(
+  'articles\s*$'                               # a bare nav 'articles'
+  'additional\ (?:information|resources)'
+  'not\ applicable'
+  'n/?a'
+  '(?:\d{1,3}|[a-z]|[ivxlcdm]{1,8})\.\s+'      # 9. / a. / II.
+  '\*important:'
+)
+
+if ($coEsc) {
+  $alts += "$coEsc\s*\|\s*$coEsc\s*"
+}
+
+$badPattern = '(?ix)^\s*(?:' + ($alts -join '|') + ')\s*$'
+$rxBadTitle = [regex]::new($badPattern)
+
+  write-host "$($rxBadTitle.tostring())"
+  $merged = New-Object System.Collections.Generic.List[object]
+  $prev = $null
+
+  foreach ($a in $Articles) {
+    # safely extract title
+    $t = ''
+    if ($null -ne $a -and ($a.PSObject.Properties.Name -contains 'Title')) {
+      $t = [string]$a.Title
+    }
+
+    $isGood = $false
+    if (-not [string]::IsNullOrWhiteSpace($t)) {
+      $isGood = ($t -match '^(?i)\s*articles?\b') -and ($t -notmatch $badPattern)
+    }
+
+    if ($isGood -or -not $prev) {
+      $merged.Add($a)
+      $prev = $a
+      continue
+    }
+    if ($null -eq $rxGoodTitle) { throw "rxGoodTitle is null (scope/init issue)" }
+if ($null -eq $rxBadTitle)  { throw "rxBadTitle is null (pattern/init issue)" }
+
+    # merge body/html into previous
+    $htmlToAdd = $null
+    if ($a.PSObject.Properties.Name -contains 'Html') {
+      $htmlToAdd = [string]$a.Html
+    } elseif ($a.PSObject.Properties.Name -contains 'Text') {
+      $htmlToAdd = [string]$a.Text
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($htmlToAdd)) {
+      $prev.Html = ([string]$prev.Html) + "`n" + $htmlToAdd
+    }
+  }
+
+  ,$merged.ToArray()
 }
 
 # --- categorizer (Disallowed > Image > Allowed > Unknown) ---
@@ -622,7 +777,7 @@ function Convert-PdfToHtml {
   )
   if (-not (Test-Path $OutputDir)) { New-Item -ItemType Directory -Path $OutputDir | Out-Null }
   $outHtml = Join-Path $OutputDir ( [IO.Path]::GetFileNameWithoutExtension($InputPdfPath) + '.html' )
-  $args = @('-s','-noframes','-enc','UTF-8','-c','-fmt','png', $InputPdfPath, $outHtml)
+  $args = @('-s','-noframes','-enc','UTF-8','-c','-p','-fmt','png', $InputPdfPath, $outHtml)
   Start-Process -FilePath $PdftoHtmlPath -ArgumentList $args -NoNewWindow -Wait
   return $outHtml
 }

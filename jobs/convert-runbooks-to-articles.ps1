@@ -37,9 +37,12 @@ if (test-path $PassportalRubooksPath){
     exit 1
 }
 
-$ConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRubooksPath).path `
+$PreConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRubooksPath).path `
             -Filter "*.pdf" `
             -File -Recurse -ErrorAction SilentlyContinue
+$converteddocslist = Merge-NonArticleSplits -Articles $PreConvertDocsList -Company $company
+
+
 
 if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
     Write-host "No eligible PDFS for convert."
@@ -305,7 +308,7 @@ $r.Unresolved | Select-Object -First 5 | Format-Table -AutoSize
   }
 }
 
-get-huduarticles -updatedAfter $RBStartTime | foreach-object {$article = $_.article ?? $_  set-huduarticle -id $article.id -name "$($article.name -replace "Articles ",'')"}
+get-huduarticles -updatedAfter $RBStartTime | foreach-object {$article = $_.article ?? $_;  set-huduarticle -id $article.id -name "$($article.name -replace "Articles ",'')";}
 
 $imagesFromRunbooks = ($convertedDocs.Values | % { $_.HuduImages } | ? { $_ } | Measure-Object).Count
 
