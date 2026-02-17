@@ -1,16 +1,58 @@
-function Normalize-CompanyName([string]$s) {
-  # strip leading digits + optional separators like '.', ')', '-', '_' and spaces
-  return ($s -replace '^\s*\d+\s*[-._)\(]*\s*', '') -replace '\s{2,}', ' '
+function Normalize-TitleText([string]$s) {
+  if ($null -eq $s) { return $null }
+  $s = $s -replace '&#160;|&nbsp;', ' '
+  $s = $s -replace '&gt;', '>' -replace '&lt;', '<' -replace '&amp;', '&'
+  $s = $s -replace '&quot;','"' -replace '&#34;','"' -replace '&#39;',"'" 
+  $s = $s -replace "[\u00A0\u2007\u202F]", ' '
+  $s = $s -replace "[\uFEFF\u200B\u200C\u200D\u2060]", ''
+  ($s -replace '\s+', ' ').Trim()
 }
+function Strip-TrailingPageNumber([string]$block){
+  [regex]::Replace($block, '(?is)\s*<p[^>]*>\s*\d+(\.\d+)*\s*</p>\s*$', '')
+}
+function Strip-Footer([string]$block, [string]$company){
+  if (-not $company) { return $block }
+  $co = [regex]::Escape($company)
+  [regex]::Replace($block, "(?is)\s*<p[^>]*>[^<]*\|\s*$co\s*</p>\s*$", '')
+}
+function Strip-TagsInner([string]$s) {
+  if ($null -eq $s) { return $null }
+  ([regex]::Replace($s, '(?is)<[^>]+>', '') -replace '\s+',' ').Trim()
+}  
+function Strip-Tags([string]$s) {
+  if ($null -eq $s) { return $null }
+  ($s -replace '(?is)<[^>]+>', '')
+}  
+$rxPage   = [regex]'(?is)<div[^>]*\bclass\s*=\s*([''"])page\1[^>]*>(?<content>.*?)</div>'
+$rxNum    = [regex]'^\s*\d+(\.\d+)*\s*$'                  # 1, 1.2, 10.11.12
+$rxFooter = [regex]'(?is)<p[^>]*>[^<]*\|\s*(?<co>[^<]+)\s*</p>\s*$'  # "* | Company"
+
+$rxArticleStart = [regex]'(?isx)
+<hr\s*/?>\s*
+<a\s+name\s*=\s*(?<anchor>\d+)\s*></a>\s*
+<a\s+href\s*=\s*["''][^"'']*#(?<toc>\d+)["''][^>]*>\s*Articles(?:&#160;|&nbsp;|\s)*</a>
+\s*(?<title>.*?)\s*<br\s*/?>\s*
+(?<idx>1\.\d{1,4}(?:\.\d{1,4})?)\s*<br\s*/?>
+'
+$rxSplit = [regex]'(?isx)
+(?<!\w)Articles(?:&#160;|&nbsp;|\s)+
+(?<title>[^<\r\n]{8,}?)
+\s*
+(?:<br\s*/?>\s*|\s{2,})
+(?<idx>1\.\d{1,4}(?:\.\d{1,4})?)
+\s*(?:<br\s*/?>|$)
+'
+
 function Strip-LeadingOutlineMarkerP([string]$pageHtml) {
+  # note- seperate tag stripping from marker detection, since some exports have the marker inside the first <p> while others have it outside
+
   while ($true) {
     $m = [regex]::Match($pageHtml, '(?is)^\s*(?<p><p\b[^>]*>.*?</p>)\s*(?<rest>.*)$')
     if (-not $m.Success) { break }
 
     $pInner = [regex]::Replace($m.Groups['p'].Value, '(?is)^<p\b[^>]*>|</p>$', '')
-    $pText  = Normalize-TitleText (Strip-Tags $pInner)
+    $pText  = Normalize-TitleText (Strip-TagsInner $pInner)
 
-    # "1.263", "II.", "v.", "3a." (optionally with nothing else)
     $isMarkerOnly =
       $pText -match '^(?i)\s*\d{1,3}(?:\.\d+)*[a-z]?\s*\.?\s*$' -or
       $pText -match '^(?i)\s*[ivxlcdm]{1,8}\s*\.?\s*$' -or
@@ -24,6 +66,7 @@ function Strip-LeadingOutlineMarkerP([string]$pageHtml) {
   }
   $pageHtml
 }
+
 function Get-SafeFileBase {
   param([Parameter(Mandatory)][string]$Name)
   $s = $Name
@@ -41,35 +84,12 @@ function Get-SafeFileBase {
   if ([string]::IsNullOrWhiteSpace($s)) { $s = 'untitled' }
   return $s
 }
-function Is-IndexLine([string]$s) {
-  if (-not $s) { return $false }
-  $t = $s -replace '<[^>]+>', ''     # strip tags
-  $t = $t -replace '&#160;|&nbsp;', ' '
-  $t = ($t -replace '\s+', ' ').Trim()
-  return ($t -match '^1\.\d{1,4}(?:\.\d{1,4})?$')
+function Get-Ps([string]$block){
+    $rxPTxt   = [regex]'(?is)<p[^>]*>(?<t>.*?)</p>'
+  ($rxPTxt.Matches($block) | ForEach-Object { $_.Groups['t'].Value.Trim() })
 }
 
-function Is-ArticleHeaderLine([string]$s) {
-  if (-not $s) { return $false }
-  $t = $s -replace '<[^>]+>', ''
-  $t = $t -replace '&#160;|&nbsp;', ' '
-  $t = ($t -replace '\s+', ' ').Trim()
 
-  # must start with Articles (or contain it very early)
-  if ($t -notmatch '^(?i)\s*Articles\b') { return $false }
-
-  # reject known junk
-  if ($t -match '^(?i)\s*Articles\s*$') { return $false }
-  if ($t -match '^(?i)\s*Articles\s+(additional\s+(information|resources)|not\s+applicable)\s*$') { return $false }
-
-  # require some “real title” after Articles
-  $after = ($t -replace '^(?i)\s*Articles\b', '').Trim()
-  return ($after.Length -ge 8)
-}
-function Strip-Tags([string]$s) {
-  if ($null -eq $s) { return $null }
-  ([regex]::Replace($s, '(?is)<[^>]+>', '') -replace '\s+',' ').Trim()
-}
 function Split-HtmlIntoArticles {
   [CmdletBinding()]
   param(
@@ -86,80 +106,6 @@ function Split-HtmlIntoArticles {
 
   $html = [IO.File]::ReadAllText($Path)
 
-  # Regexes
-  $rxPage   = [regex]'(?is)<div[^>]*\bclass\s*=\s*([''"])page\1[^>]*>(?<content>.*?)</div>'
-  $rxPTxt   = [regex]'(?is)<p[^>]*>(?<t>.*?)</p>'
-  $rxNum    = [regex]'^\s*\d+(\.\d+)*\s*$'                  # 1, 1.2, 10.11.12
-  $rxFooter = [regex]'(?is)<p[^>]*>[^<]*\|\s*(?<co>[^<]+)\s*</p>\s*$'  # "* | Company"
-
-  # Helpers
-function Strip-Tags([string]$s) {
-  if ($null -eq $s) { return $null }
-  # kill tags but keep text
-  ($s -replace '(?is)<[^>]+>', '')
-}  
-  function Get-Ps([string]$block){
-    ($rxPTxt.Matches($block) | ForEach-Object { $_.Groups['t'].Value.Trim() })
-  }
-  function Strip-FirstP([string]$block, [int]$n=1){
-    $out = $block
-    for ($i=0; $i -lt $n; $i++){
-      $out = [regex]::Replace($out, '(?is)^\s*<p[^>]*>.*?</p>\s*', '', 1)
-    }
-    $out
-  }
-function Normalize-TitleText([string]$s) {
-  if ($null -eq $s) { return $null }
-
-  $s = $s -replace '&#160;|&nbsp;', ' '
-  $s = $s -replace '&gt;', '>' -replace '&lt;', '<' -replace '&amp;', '&'
-  $s = $s -replace '&quot;','"' -replace '&#34;','"' -replace '&#39;',"'" 
-  $s = $s -replace "[\u00A0\u2007\u202F]", ' '
-  $s = $s -replace "[\uFEFF\u200B\u200C\u200D\u2060]", ''
-  ($s -replace '\s+', ' ').Trim()
-}
-
-  function Strip-TrailingPageNumber([string]$block){
-    [regex]::Replace($block, '(?is)\s*<p[^>]*>\s*\d+(\.\d+)*\s*</p>\s*$', '')
-  }
-  function Strip-Footer([string]$block, [string]$company){
-    if (-not $company) { return $block }
-    $co = [regex]::Escape($company)
-    [regex]::Replace($block, "(?is)\s*<p[^>]*>[^<]*\|\s*$co\s*</p>\s*$", '')
-  }
-$rxOutlineMarker = [regex]'(?ix) ^
-  \s*
-  (?:
-      \d{1,3}
-    | [a-z]
-    | [ivxlcdm]{1,8}
-  )
-  \.
-  \s* $
-'
-
-# Optional: things that are clearly not titles in your export
-$rxJunkTitle = [regex]'(?ix) ^
-  \s*
-  (?:not\ applicable|n/?a|additional\ information|additional\ resources)
-  \s* \.? \s* $
-'
-$rxArticleStart = [regex]'(?isx)
-  <hr\s*/?>\s*
-  <a\s+name\s*=\s*(?<anchor>\d+)\s*></a>\s*
-  <a\s+href\s*=\s*["''][^"'']*#(?<toc>\d+)["''][^>]*>\s*Articles(?:&#160;|&nbsp;|\s)*</a>
-  \s*(?<title>.*?)\s*<br\s*/?>\s*
-  (?<idx>1\.\d{1,4}(?:\.\d{1,4})?)\s*<br\s*/?>
-'
-$rxSplit = [regex]'(?isx)
-  (?<!\w)Articles(?:&#160;|&nbsp;|\s)+
-  (?<title>[^<\r\n]{8,}?)
-  \s*
-  (?:<br\s*/?>\s*|\s{2,})
-  (?<idx>1\.\d{1,4}(?:\.\d{1,4})?)
-  \s*(?:<br\s*/?>|$)
-'
-  # Collect pages
   $pageMatches = $rxPage.Matches($html)
   if ($pageMatches.Count -eq 0) {
     if ($AsObjects -or $AsHtml) { return @() } else { return '[]' }
@@ -200,14 +146,13 @@ $rxSplit = [regex]'(?isx)
     $chunkStart = $m.Index
     $chunkEnd   = if ($i -lt $matches.Count - 1) { $matches[$i+1].Index } else { $raw.Length }
 
-    # If you want to REMOVE the header lines from Html, start after header match
     $bodyStart = $m.Index + $m.Length
     $htmlBody  = $raw.Substring($bodyStart, $chunkEnd - $bodyStart)
 
     $title = Normalize-TitleText (Strip-Tags $m.Groups['title'].Value)
     $idx   = $m.Groups['idx'].Value
 
-    # Optional: kill footer-ish "Company | Company" + page-number at the end of the chunk
+    # remove "Company | Company" + page-number at the end of the chunk
     if ($CompanyOverride) {
       $co = [regex]::Escape($CompanyOverride)
       $htmlBody = [regex]::Replace($htmlBody, "(?is)\s*$co\s*\|\s*$co\s*<br/>\s*\d+\s*<br/>\s*$", '')
@@ -224,7 +169,6 @@ $rxSplit = [regex]'(?isx)
   }
 
   # If the first article is a 'Preface' and you don't want it, drop it:
-
   if ($AsObjects) { return $articles }
   elseif ($AsHtml) {
     return ($articles | ForEach-Object { "<!-- $($_.Company) | $($_.Title) -->`n$($_.Html)" }) -join "`n`n"
@@ -284,11 +228,11 @@ function Merge-NonArticleSplits {
 
   # Bad "titles" that should be merged into previous
 $alts = @(
-  'articles\s*$'                               # a bare nav 'articles'
+  'articles\s*$'
   'additional\ (?:information|resources)'
   'not\ applicable'
   'n/?a'
-  '(?:\d{1,3}|[a-z]|[ivxlcdm]{1,8})\.\s+'      # 9. / a. / II.
+  '(?:\d{1,3}|[a-z]|[ivxlcdm]{1,8})\.\s+'
   '\*important:'
 )
 
@@ -396,9 +340,9 @@ function Get-FileExt {
 function Get-DocumentFilesForRow {
   [CmdletBinding()]
   param(
-    [Parameter(Mandatory)][object]$Row,                # expects .locator, .name
-    [Parameter(Mandatory)][string]$RootDocs,           # e.g. Join-Path $ITBoostExportPath 'documents'
-    [Parameter()][object[]]$FolderIndex,               # from Build-DocFolderIndex (optional)
+    [Parameter(Mandatory)][object]$Row,
+    [Parameter(Mandatory)][string]$RootDocs,
+    [Parameter()][object[]]$FolderIndex,
     [int]$MaxFilesPerRow = 200,
     [int]$MinConfidence = 60
   )

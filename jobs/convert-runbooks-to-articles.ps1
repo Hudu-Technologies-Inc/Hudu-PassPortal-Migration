@@ -9,7 +9,7 @@ if ([string]::IsNullOrEmpty($runbooksCompanyName)) { $internalCompanyForRunbooks
 $RBStartTime = Get-Date
 
 if ($null -ne $internalCompanyForRunbooks){
-  write-host "using internal company $($internalCompanyForRunbooks.id) $($internalCompanyForRunbooks.name) for all runbooks"
+  read-host "using internal company $($internalCompanyForRunbooks.id) $($internalCompanyForRunbooks.name) for all runbooks"
 }
 
 $workdir = $workdir ?? $(split-path $(resolve-path .))
@@ -156,8 +156,8 @@ foreach ($key in $convertedDocs.Keys) {
         $newDocument = New-HuduArticle -name "$($sd.Title)" -Content "[transfer in-progress]" -CompanyId $matchedCompany.id
         $newDocument = $newDocument.article ?? $newDocument
     }
-    if ($newDocument){Write-Host "Created article stub $($newDocument.id)"}
-    elseif ($matchedDocument){Write-Host "Matched exist article $($matchedDocument.id)"}
+    if ($newDocument){Write-Host "Created article stub $($newDocument.name) $($newDocument.id)"}
+    elseif ($matchedDocument){Write-Host "Matched exist article ($($matchedDocument.name)) $($matchedDocument.id)"}
     $articleUsed = $matchedDocument ?? $newDocument ?? $null; $articleUsed = $articleUsed.article ?? $articleUsed;
     if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
 
