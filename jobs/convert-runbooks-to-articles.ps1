@@ -1,7 +1,7 @@
 # Poppler Setup
 $includeHiddenText=$true
 $includeComplexLayouts=$true
-
+$PassportalDocsConvert = $PassportalDocsConvert ?? $true
 # for testing
 # $SingleDocumentTest = $false
 
@@ -13,7 +13,7 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
 
 
 if (-not $PassportalDocsConvert -or -not $true -eq $PassportalDocsConvert){
-    Write-host "Not set to convert passportal";x Exit 0;
+    Write-host "Not set to convert passportal"; Exit 0;
 }
 
     while ($true) {
@@ -46,6 +46,8 @@ if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
 } else {
     Write-host "$($ConvertDocsList.count) eligible PDFS for convert."
 }
+
+$PDFToHTML = $PDFToHTML ?? $(get-childitem -path "$workdir/.." -file -filter "pdftohtml.exe" -Recurse | Select-Object -First 1).FullName
 
 if (-not $(test-path $PDFToHTML)){
     write-host "pdf2html not found at $PDFToHTML"; exit 1;
@@ -131,40 +133,7 @@ foreach ($key in $convertedDocs.Keys) {
     $doc["HuduCompany"]=$matchedCompany
   }
 
-  $doc['SplitDocs']   = @()
-$HuduImages = @()
-$existingRelatedImages = Get-HuduUploads | Where-Object { $_.uploadable_type -eq 'Company' -and $_.uploadable_id -eq $matchedCompany.Id }
-
-foreach ($ImageFile in $doc.ExtractedImages) {
-  $existingUpload = $null
-  $uploaded = $null                # reset per file
-
-  $ImagefileName = ([IO.Path]::GetFileName($ImageFile)).Trim()
-
-  $existingUpload = $existingRelatedImages |
-    Where-Object { $_.name -eq $ImagefileName } | Select-Object -First 1
-  if (-not $existingUpload) {
-    $existingUpload = $existingRelatedImages |
-      Where-Object { Test-Equiv -A $_.name -B $ImagefileName } | Select-Object -First 1
-  }
-  $existingUpload = $existingUpload.upload ?? $existingUpload
-
-  if ($existingUpload) {
-    Write-Host "ExistingUpload Match $($existingUpload.name)"
-  } else {
-    Write-Host "No existing upload, uploading file @ $ImageFile"
-    $uploaded = New-HuduUpload -FilePath $ImageFile -Uploadable_Id $matchedCompany.Id -Uploadable_Type 'Company'
-    $uploaded = $uploaded.upload ?? $uploaded
-  }
-
-  $usingImage = $existingUpload ?? $uploaded
-  $HuduImages += @{
-    OriginalFilename = $ImageFile
-    UsingImage       = $usingImage
-  }
-}
-$doc['HuduImages'] = $HuduImages
-
+$doc['SplitDocs']   = @()
 
   foreach ($sd in $split) {
     $matchedDocument = $null
@@ -180,8 +149,41 @@ $doc['HuduImages'] = $HuduImages
     }
     if ($newDocument){Write-Host "Created article stub $($newDocument.id)"}
     elseif ($matchedDocument){Write-Host "Matched exist article $($matchedDocument.id)"}
-    $articleUsed = $matchedDocument ?? $newDocument ?? $null
+    $articleUsed = $matchedDocument ?? $newDocument ?? $null; $articleUsed = $articleUsed.article ?? $articleUsed;
     if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
+
+    $HuduImages = @()
+    $existingRelatedImages = Get-HuduUploads | Where-Object { $_.uploadable_type -ieq 'Article' }
+
+    foreach ($ImageFile in $doc.ExtractedImages) {
+      $existingUpload = $null
+      $uploaded = $null                # reset per file
+
+      $ImagefileName = ([IO.Path]::GetFileName($ImageFile)).Trim()
+
+      $existingUpload = $existingRelatedImages |
+        Where-Object { $_.name -eq $ImagefileName } | Select-Object -First 1
+      # if (-not $existingUpload) {
+      #   $existingUpload = $existingRelatedImages |
+      #     Where-Object { Test-Equiv -A $_.name -B $ImagefileName } | Select-Object -First 1
+      # }
+      $existingUpload = $existingUpload.upload ?? $existingUpload
+
+      if ($existingUpload) {
+        Write-Host "ExistingUpload Match $($existingUpload.name)"
+      } else {
+        Write-Host "No existing upload, uploading file @ $ImageFile"
+        $uploaded = New-HuduUpload -FilePath $ImageFile -Uploadable_Id $articleUsed.Id -Uploadable_Type 'Article'
+        $uploaded = $uploaded.upload ?? $uploaded
+      }
+
+      $usingImage = $existingUpload ?? $uploaded
+      $HuduImages += @{
+        OriginalFilename = $ImageFile
+        UsingImage       = $usingImage
+      }
+    }
+    $doc['HuduImages'] = $HuduImages ?? @()
     Write-Host "Article and Uploads are complete"
 
 
@@ -287,8 +289,8 @@ foreach ($key in $convertedDocs.Keys) {
 
   # Build maps
 # Build maps
-$docImageMap   = New-DocImageMap  -HuduImages $doc.HuduImages
-$docArticleMap = New-DocArticleMap -SplitDocs $doc.SplitDocs -HuduBaseUrl $HuduBaseUrl
+$docImageMap   = New-DocImageMap  -HuduImages $($doc.HuduImages ?? @())
+$docArticleMap = New-DocArticleMap -SplitDocs ($doc.SplitDocs ?? @()) -HuduBaseUrl $HuduBaseUrl
   for ($i = 0; $i -lt $doc.SplitDocs.Count; $i++) {
     $sd  = $doc.SplitDocs[$i]
     $ctx = @{ ImageMap = $docImageMap; ArticleMap = $docArticleMap }

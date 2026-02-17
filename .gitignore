@@ -15,9 +15,14 @@ PassPortalLog
 logs/PassPortalLog*
 */PassPortalLog*
 .\tmp
+.\rbtmp
 tmp\*
+rbtmp\*
 docs\
 tmp/LibreOffice.msi
 tmp
 .\tmp*
 *\tmp\*
+.\rbtmp*
+*\rbtmp\*
+rbtmp
