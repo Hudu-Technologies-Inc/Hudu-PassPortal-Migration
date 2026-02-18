@@ -6,7 +6,7 @@ Easy Migration from SolarWinds Passportal to Hudu
 
 Before getting started, make sure you have the following in place:
 
-- Hudu instance **v2.38.0 or newer**
+- Hudu instance **v2.39.6 or newer**
 - Companies created in Hudu (required if you want to attribute imported items to companies)
 - A Hudu API key
 - A Passportal account with an API key and secret
