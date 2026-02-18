@@ -1,45 +1,48 @@
 # Poppler Setup
 $includeHiddenText=$true
 $includeComplexLayouts=$true
-
+$PassportalDocsConvert = $PassportalDocsConvert ?? $false
+$runbooksCompanyName = $runbooksCompanyName ?? $null
+if ([string]::IsNullOrEmpty($runbooksCompanyName)) { $internalCompanyForRunbooks = $null } else { $internalCompanyForRunbooks = get-huducompanies -name $runbooksCompanyName | select-object -first 1; $internalCompanyForRunbooks = $internalCompanyForRunbooks.company ?? $internalCompanyForRunbooks; }
 # for testing
 # $SingleDocumentTest = $false
+$RBStartTime = Get-Date
+
+if ($null -ne $internalCompanyForRunbooks){
+  read-host "using internal company $($internalCompanyForRunbooks.id) $($internalCompanyForRunbooks.name) for all runbooks"
+}
 
 $workdir = $workdir ?? $(split-path $(resolve-path .))
 foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
     Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
     . $file.FullName
 }
-
+if (-not (Get-Command -Name get-hudubaseurl -ErrorAction SilentlyContinue)) { Get-PSVersionCompatible; Get-HuduModule; Set-HuduInstance; Get-HuduVersionCompatible; }
 
 if (-not $PassportalDocsConvert -or -not $true -eq $PassportalDocsConvert){
-    Write-host "Not set to convert passportal";x Exit 0;
+    Write-host "Not set to convert passportal"; Exit 0;
 }
 
-    while ($true) {
-        if (-not $PassportalRubooksPath -or $([string]::IsNullOrEmpty($PassportalRubooksPath))){
-          $PassportalRubooksPath = $(read-host "Please enter absolute path to your passportal runbooks")
-        } elseif (-not $(Test-Path $PassportalRubooksPath)){
-          Write-Host "Runbooks path (currently $PassportalRubooksPath) doesnt appear to exist."
-        } else {
-          break
-        }
-        $PassportalRubooksPath = read-host "Please enter valid runbooks Export path (containing PDF files)"
+# validate runbooks path
+while ($true) {
+    if (-not $PassportalRunbooksPath -or $([string]::IsNullOrEmpty($PassportalRunbooksPath))){
+      $PassportalRunbooksPath = $(read-host "Please enter absolute path to your passportal runbooks")
+    } elseif (-not $(Test-Path $PassportalRunbooksPath)){
+      Write-Host "Runbooks path (currently $PassportalRunbooksPath) doesnt appear to exist."
+    } else {
+      break
     }
-
-
-
-if (test-path $PassportalRubooksPath){
+    $PassportalRunbooksPath = read-host "Please enter valid runbooks Export path (containing PDF files)"
+}
+if (test-path $PassportalRunbooksPath){
     Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is valid"
 } else {
     Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is not valid"
     exit 1
 }
 
-$ConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRubooksPath).path `
-            -Filter "*.pdf" `
-            -File -Recurse -ErrorAction SilentlyContinue
-
+# enumerate source runbooks
+$ConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRunbooksPath).path -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue
 if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
     Write-host "No eligible PDFS for convert."
     exit 1
@@ -47,10 +50,11 @@ if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
     Write-host "$($ConvertDocsList.count) eligible PDFS for convert."
 }
 
+# find pdftohtml
+$PDFToHTML = $PDFToHTML ?? $(get-childitem -path "$workdir/.." -file -filter "pdftohtml.exe" -Recurse | Select-Object -First 1).FullName
 if (-not $(test-path $PDFToHTML)){
     write-host "pdf2html not found at $PDFToHTML"; exit 1;
 }
-
 write-host "pdf2html at $PDFToHTML"
 
 
@@ -59,12 +63,6 @@ foreach ($folder in @($tmpfolder)) {
     if (!(Test-Path -Path "$folder")) { New-Item "$folder" -ItemType Directory }
     Get-ChildItem -Path "$folder" -File -Recurse -Force | Remove-Item -Force
 }
-
-
-$sofficePath=$(Get-LibreMSI -tmpfolder $tmpfolder)
-write-host "libreoffice sofficepath $sofficepath"
-
-
 
 $convertedDocs = @{}
 
@@ -103,14 +101,20 @@ write-host "Successfully converted $($convertedDocs.count) runbook docs. Now to 
 $huduCompanies = Get-HuduCompanies
 $allHududocuments = Get-HuduArticles
 
+
+
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
   $companyHint = [IO.Path]::GetFileName($doc.extractPath.TrimEnd('\'))
-  $split = Split-FullHtmlIntoArticles -Path $doc.HtmlPath -AsObjects -CompanyHint $companyHint
-  $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
 
-  $matchedCompany = $null  
-    $matchedCompany = $huduCompanies | where-object {$_.name -eq $doc['CompanyName']}
+  # split docs by Header/Footer and other heuristics, then merge back non-article splits into nearest article
+  $presplit = Split-FullHtmlIntoArticles -Path $doc.HtmlPath -AsObjects -CompanyHint $companyHint
+  $split = Merge-NonArticleSplits -Articles $presplit -company $companyHint
+  
+  # Assign / Ensure company
+  $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
+  $matchedCompany = $internalCompanyForRunbooks ?? $null  
+    $matchedCompany = $matchedCompany ?? $($huduCompanies | where-object {$_.name -eq $doc['CompanyName']})
     $matchedCompany = $matchedCompany ?? $($huduCompanies | where-object {
         [bool]$(Test-Equiv -A $_.name -B "$($doc['CompanyName'])") -or
         [bool]$(Test-Equiv -A $_.nickname -B "$($doc['CompanyName'])")} | Select-Object -First 1)
@@ -131,45 +135,11 @@ foreach ($key in $convertedDocs.Keys) {
     $doc["HuduCompany"]=$matchedCompany
   }
 
+  # stub each split article
   $doc['SplitDocs']   = @()
-$HuduImages = @()
-$existingRelatedImages = Get-HuduUploads | Where-Object { $_.uploadable_type -eq 'Company' -and $_.uploadable_id -eq $matchedCompany.Id }
-
-foreach ($ImageFile in $doc.ExtractedImages) {
-  $existingUpload = $null
-  $uploaded = $null                # reset per file
-
-  $ImagefileName = ([IO.Path]::GetFileName($ImageFile)).Trim()
-
-  $existingUpload = $existingRelatedImages |
-    Where-Object { $_.name -eq $ImagefileName } | Select-Object -First 1
-  if (-not $existingUpload) {
-    $existingUpload = $existingRelatedImages |
-      Where-Object { Test-Equiv -A $_.name -B $ImagefileName } | Select-Object -First 1
-  }
-  $existingUpload = $existingUpload.upload ?? $existingUpload
-
-  if ($existingUpload) {
-    Write-Host "ExistingUpload Match $($existingUpload.name)"
-  } else {
-    Write-Host "No existing upload, uploading file @ $ImageFile"
-    $uploaded = New-HuduUpload -FilePath $ImageFile -Uploadable_Id $matchedCompany.Id -Uploadable_Type 'Company'
-    $uploaded = $uploaded.upload ?? $uploaded
-  }
-
-  $usingImage = $existingUpload ?? $uploaded
-  $HuduImages += @{
-    OriginalFilename = $ImageFile
-    UsingImage       = $usingImage
-  }
-}
-$doc['HuduImages'] = $HuduImages
-
-
   foreach ($sd in $split) {
     $matchedDocument = $null
     $newDocument = $null
-    $uploaded = $null
     $matchedDocument = $allHududocuments | Where-Object {
         $_.company_id -eq $matchedCompany.id -and
             $(Test-Equiv -A $_.name -B $sd.Title)} | Select-Object -first 1
@@ -178,19 +148,45 @@ $doc['HuduImages'] = $HuduImages
         $newDocument = New-HuduArticle -name "$($sd.Title)" -Content "[transfer in-progress]" -CompanyId $matchedCompany.id
         $newDocument = $newDocument.article ?? $newDocument
     }
-    if ($newDocument){Write-Host "Created article stub $($newDocument.id)"}
-    elseif ($matchedDocument){Write-Host "Matched exist article $($matchedDocument.id)"}
-    $articleUsed = $matchedDocument ?? $newDocument ?? $null
+    if ($newDocument){Write-Host "Created article stub $($newDocument.name) $($newDocument.id)"}
+    elseif ($matchedDocument){Write-Host "Matched exist article ($($matchedDocument.name)) $($matchedDocument.id)"}
+    $articleUsed = $matchedDocument ?? $newDocument ?? $null; $articleUsed = $articleUsed.article ?? $articleUsed;
     if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
     Write-Host "Article and Uploads are complete"
-
-
     $doc['SplitDocs'] += [pscustomobject]@{
       Title   = $sd.Title
       Article = $sd.Html
       HuduArticle = $articleUsed
     }
   }
+  $HuduImages = @()
+  $existingRelatedImages = Get-HuduUploads | Where-Object { $_.uploadable_type -ieq 'Article' }
+
+  # process images once with last article for attribution
+  foreach ($ImageFile in $doc.ExtractedImages) {
+    $existingUpload = $null
+    $uploaded = $null
+
+    $ImagefileName = ([IO.Path]::GetFileName($ImageFile)).Trim()
+
+    $existingUpload = $existingRelatedImages | Where-Object { $_.name -eq $ImagefileName } | Select-Object -First 1
+    $existingUpload = $existingUpload.upload ?? $existingUpload
+
+    if ($existingUpload) {
+      Write-Host "ExistingUpload Match $($existingUpload.name)"
+    } else {
+      Write-Host "No existing upload, uploading file @ $ImageFile"
+      $uploaded = New-HuduUpload -FilePath $ImageFile -Uploadable_Id $articleUsed.Id -Uploadable_Type 'Article'
+      $uploaded = $uploaded.upload ?? $uploaded
+    }
+
+    $usingImage = $existingUpload ?? $uploaded
+    $HuduImages += @{
+      OriginalFilename = $ImageFile
+      UsingImage       = $usingImage
+    }
+  }
+  $doc['HuduImages'] = $HuduImages ?? @()  
 }
 
 Write-Host "All Articles created or stubbed; time to rewrite image sources and anchors"
@@ -287,8 +283,8 @@ foreach ($key in $convertedDocs.Keys) {
 
   # Build maps
 # Build maps
-$docImageMap   = New-DocImageMap  -HuduImages $doc.HuduImages
-$docArticleMap = New-DocArticleMap -SplitDocs $doc.SplitDocs -HuduBaseUrl $HuduBaseUrl
+$docImageMap   = New-DocImageMap  -HuduImages $($doc.HuduImages ?? @())
+$docArticleMap = New-DocArticleMap -SplitDocs ($doc.SplitDocs ?? @()) -HuduBaseUrl $HuduBaseUrl
   for ($i = 0; $i -lt $doc.SplitDocs.Count; $i++) {
     $sd  = $doc.SplitDocs[$i]
     $ctx = @{ ImageMap = $docImageMap; ArticleMap = $docArticleMap }
@@ -301,6 +297,8 @@ $r.Unresolved | Select-Object -First 5 | Format-Table -AutoSize
     Set-HuduArticle -Id $sd.HuduArticle.Id -CompanyId $sd.HuduArticle.company_id -Content $r.Html
   }
 }
+
+get-huduarticles -updatedAfter $RBStartTime | foreach-object {$article = $_.article ?? $_;  set-huduarticle -id $article.id -name "$($article.name -replace "Articles ",'')";}
 
 $imagesFromRunbooks = ($convertedDocs.Values | % { $_.HuduImages } | ? { $_ } | Measure-Object).Count
 
