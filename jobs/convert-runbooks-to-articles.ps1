@@ -23,19 +23,17 @@ if (-not $PassportalDocsConvert -or -not $true -eq $PassportalDocsConvert){
     Write-host "Not set to convert passportal"; Exit 0;
 }
 
-    while ($true) {
-        if (-not $PassportalRunbooksPath -or $([string]::IsNullOrEmpty($PassportalRunbooksPath))){
-          $PassportalRunbooksPath = $(read-host "Please enter absolute path to your passportal runbooks")
-        } elseif (-not $(Test-Path $PassportalRunbooksPath)){
-          Write-Host "Runbooks path (currently $PassportalRunbooksPath) doesnt appear to exist."
-        } else {
-          break
-        }
-        $PassportalRunbooksPath = read-host "Please enter valid runbooks Export path (containing PDF files)"
+# validate runbooks path
+while ($true) {
+    if (-not $PassportalRunbooksPath -or $([string]::IsNullOrEmpty($PassportalRunbooksPath))){
+      $PassportalRunbooksPath = $(read-host "Please enter absolute path to your passportal runbooks")
+    } elseif (-not $(Test-Path $PassportalRunbooksPath)){
+      Write-Host "Runbooks path (currently $PassportalRunbooksPath) doesnt appear to exist."
+    } else {
+      break
     }
-
-
-
+    $PassportalRunbooksPath = read-host "Please enter valid runbooks Export path (containing PDF files)"
+}
 if (test-path $PassportalRunbooksPath){
     Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is valid"
 } else {
@@ -43,9 +41,8 @@ if (test-path $PassportalRunbooksPath){
     exit 1
 }
 
+# enumerate source runbooks
 $ConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRunbooksPath).path -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue
-
-
 if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
     Write-host "No eligible PDFS for convert."
     exit 1
@@ -53,12 +50,11 @@ if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
     Write-host "$($ConvertDocsList.count) eligible PDFS for convert."
 }
 
+# find pdftohtml
 $PDFToHTML = $PDFToHTML ?? $(get-childitem -path "$workdir/.." -file -filter "pdftohtml.exe" -Recurse | Select-Object -First 1).FullName
-
 if (-not $(test-path $PDFToHTML)){
     write-host "pdf2html not found at $PDFToHTML"; exit 1;
 }
-
 write-host "pdf2html at $PDFToHTML"
 
 
@@ -116,10 +112,13 @@ $allHududocuments = Get-HuduArticles
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
   $companyHint = [IO.Path]::GetFileName($doc.extractPath.TrimEnd('\'))
+
+  # split docs by Header/Footer and other heuristics, then merge back non-article splits into nearest article
   $presplit = Split-FullHtmlIntoArticles -Path $doc.HtmlPath -AsObjects -CompanyHint $companyHint
   $split = Merge-NonArticleSplits -Articles $presplit -company $companyHint
+  
+  # Assign / Ensure company
   $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
-
   $matchedCompany = $internalCompanyForRunbooks ?? $null  
     $matchedCompany = $matchedCompany ?? $($huduCompanies | where-object {$_.name -eq $doc['CompanyName']})
     $matchedCompany = $matchedCompany ?? $($huduCompanies | where-object {
@@ -142,12 +141,11 @@ foreach ($key in $convertedDocs.Keys) {
     $doc["HuduCompany"]=$matchedCompany
   }
 
+  # stub each split article
   $doc['SplitDocs']   = @()
-
   foreach ($sd in $split) {
     $matchedDocument = $null
     $newDocument = $null
-    $uploaded = $null
     $matchedDocument = $allHududocuments | Where-Object {
         $_.company_id -eq $matchedCompany.id -and
             $(Test-Equiv -A $_.name -B $sd.Title)} | Select-Object -first 1
@@ -160,48 +158,41 @@ foreach ($key in $convertedDocs.Keys) {
     elseif ($matchedDocument){Write-Host "Matched exist article ($($matchedDocument.name)) $($matchedDocument.id)"}
     $articleUsed = $matchedDocument ?? $newDocument ?? $null; $articleUsed = $articleUsed.article ?? $articleUsed;
     if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
-
-    $HuduImages = @()
-    $existingRelatedImages = Get-HuduUploads | Where-Object { $_.uploadable_type -ieq 'Article' }
-
-    foreach ($ImageFile in $doc.ExtractedImages) {
-      $existingUpload = $null
-      $uploaded = $null                # reset per file
-
-      $ImagefileName = ([IO.Path]::GetFileName($ImageFile)).Trim()
-
-      $existingUpload = $existingRelatedImages |
-        Where-Object { $_.name -eq $ImagefileName } | Select-Object -First 1
-      # if (-not $existingUpload) {
-      #   $existingUpload = $existingRelatedImages |
-      #     Where-Object { Test-Equiv -A $_.name -B $ImagefileName } | Select-Object -First 1
-      # }
-      $existingUpload = $existingUpload.upload ?? $existingUpload
-
-      if ($existingUpload) {
-        Write-Host "ExistingUpload Match $($existingUpload.name)"
-      } else {
-        Write-Host "No existing upload, uploading file @ $ImageFile"
-        $uploaded = New-HuduUpload -FilePath $ImageFile -Uploadable_Id $articleUsed.Id -Uploadable_Type 'Article'
-        $uploaded = $uploaded.upload ?? $uploaded
-      }
-
-      $usingImage = $existingUpload ?? $uploaded
-      $HuduImages += @{
-        OriginalFilename = $ImageFile
-        UsingImage       = $usingImage
-      }
-    }
-    $doc['HuduImages'] = $HuduImages ?? @()
     Write-Host "Article and Uploads are complete"
-
-
     $doc['SplitDocs'] += [pscustomobject]@{
       Title   = $sd.Title
       Article = $sd.Html
       HuduArticle = $articleUsed
     }
   }
+  $HuduImages = @()
+  $existingRelatedImages = Get-HuduUploads | Where-Object { $_.uploadable_type -ieq 'Article' }
+
+  # process images once with last article for attribution
+  foreach ($ImageFile in $doc.ExtractedImages) {
+    $existingUpload = $null
+    $uploaded = $null
+
+    $ImagefileName = ([IO.Path]::GetFileName($ImageFile)).Trim()
+
+    $existingUpload = $existingRelatedImages | Where-Object { $_.name -eq $ImagefileName } | Select-Object -First 1
+    $existingUpload = $existingUpload.upload ?? $existingUpload
+
+    if ($existingUpload) {
+      Write-Host "ExistingUpload Match $($existingUpload.name)"
+    } else {
+      Write-Host "No existing upload, uploading file @ $ImageFile"
+      $uploaded = New-HuduUpload -FilePath $ImageFile -Uploadable_Id $articleUsed.Id -Uploadable_Type 'Article'
+      $uploaded = $uploaded.upload ?? $uploaded
+    }
+
+    $usingImage = $existingUpload ?? $uploaded
+    $HuduImages += @{
+      OriginalFilename = $ImageFile
+      UsingImage       = $usingImage
+    }
+  }
+  $doc['HuduImages'] = $HuduImages ?? @()  
 }
 
 Write-Host "All Articles created or stubbed; time to rewrite image sources and anchors"
