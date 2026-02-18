@@ -64,12 +64,6 @@ foreach ($folder in @($tmpfolder)) {
     Get-ChildItem -Path "$folder" -File -Recurse -Force | Remove-Item -Force
 }
 
-
-$sofficePath=$(Get-LibreMSI -tmpfolder $tmpfolder)
-write-host "libreoffice sofficepath $sofficepath"
-
-
-
 $convertedDocs = @{}
 
 foreach ($a in $ConvertDocsList){

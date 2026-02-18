@@ -24,8 +24,8 @@ function Strip-Tags([string]$s) {
   ($s -replace '(?is)<[^>]+>', '')
 }  
 $rxPage   = [regex]'(?is)<div[^>]*\bclass\s*=\s*([''"])page\1[^>]*>(?<content>.*?)</div>'
-$rxNum    = [regex]'^\s*\d+(\.\d+)*\s*$'                  # 1, 1.2, 10.11.12
-$rxFooter = [regex]'(?is)<p[^>]*>[^<]*\|\s*(?<co>[^<]+)\s*</p>\s*$'  # "* | Company"
+$rxNum    = [regex]'^\s*\d+(\.\d+)*\s*$'
+$rxFooter = [regex]'(?is)<p[^>]*>[^<]*\|\s*(?<co>[^<]+)\s*</p>\s*$'
 
 $rxArticleStart = [regex]'(?isx)
 <hr\s*/?>\s*
@@ -34,14 +34,7 @@ $rxArticleStart = [regex]'(?isx)
 \s*(?<title>.*?)\s*<br\s*/?>\s*
 (?<idx>1\.\d{1,4}(?:\.\d{1,4})?)\s*<br\s*/?>
 '
-$rxSplit = [regex]'(?isx)
-(?<!\w)Articles(?:&#160;|&nbsp;|\s)+
-(?<title>[^<\r\n]{8,}?)
-\s*
-(?:<br\s*/?>\s*|\s{2,})
-(?<idx>1\.\d{1,4}(?:\.\d{1,4})?)
-\s*(?:<br\s*/?>|$)
-'
+$rxSplit = [regex]::new('(?is)(?<!\w)Articles(?:&#160;|&nbsp;|\s)+(?<title>[^<\r\n]{8,}?)\s*(?:<br\s*/?>\s*|\s{2,})(?<idx>1\.\d{1,4}(?:\.\d{1,4})?)\s*(?:<br\s*/?>|$)')
 
 function Strip-LeadingOutlineMarkerP([string]$pageHtml) {
   # note- seperate tag stripping from marker detection, since some exports have the marker inside the first <p> while others have it outside
