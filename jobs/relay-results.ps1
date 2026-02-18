@@ -24,8 +24,12 @@ Created $($CreatedAssets.Count) Assets in Hudu from $foundDocs Docs Found in Pas
 Your Hudu instance now has a total of $($(Get-HuduAssets).Count) assets
 "@
 
+$passwordCsvCount = [int]$(if ($passportalData.csvData.passwords) { $passportalData.csvData.passwords.count } else { 0 })
+$vaultCsvCount = [int]$(if ($passportalData.csvData.vault) { $passportalData.csvData.vault.count } else { 0 })
+$totalCsvPasswordCount = $passwordCsvCount + $vaultCsvCount
+
 $Passwordsresults=@"
-$($CreatedPasswords.count) were created in Hudu from $([int]$(if ($passportalData.csvData.passwords){$passportalData.csvData.passwords.count} else {0}) + [int](if ($passportalData.csvData.vault){$passportalData.csvData.vault.count} else {0})) Passwords were found via CSV
+$($CreatedPasswords.count) were created in Hudu from $totalCsvPasswordCount Passwords were found via CSV
 Your hudu instance now has a total of $($(Get-HuduPasswords).count) passwords available
 "@
 

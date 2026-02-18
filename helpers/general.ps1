@@ -292,12 +292,10 @@ function Select-ObjectFromList($objects, $message, $inspectObjects = $false, $al
 
         $choice = Read-Host $message
 
-        if (-not ($choice -as [int])) {
+        if (-not [int]::TryParse($choice, [ref]$choice)) {
             Write-Host "Invalid input. Please enter a number." -ForegroundColor Red
             continue
         }
-
-        $choice = [int]$choice
 
         if ($choice -eq 0 -and $allowNull) {
             return $null

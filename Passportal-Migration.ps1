@@ -15,6 +15,12 @@ $passportalData = @{
     Token = $null; Headers = @{}; BaseURL = $null; clients=@(); Documents =@(); csvData = @{}
 }
 
+$PassportalSkipDocTypes = @($PassportalSkipDocTypes)
+if ($PassportalSkipDocTypes.Count -gt 0) {
+    $passportalData.docTypes = @($passportalData.docTypes | Where-Object { $_ -notin $PassportalSkipDocTypes })
+    Write-Host "Skipping Passportal doctypes: $($PassportalSkipDocTypes -join ', ')" -ForegroundColor DarkYellow
+}
+
 $PassportalDocsConvert = $PassportalDocsConvert ?? $false
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders","passportalData")
 $HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
@@ -101,4 +107,3 @@ foreach ($var in $sensitiveVars) {
     Set-PrintAndLog -message  "Unset Sensitive Var $var"
     Unset-Vars -varname $var
 }
-

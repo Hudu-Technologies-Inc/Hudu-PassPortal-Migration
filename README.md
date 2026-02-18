@@ -146,6 +146,16 @@ If you chose the former, you will be prompted to enter the secrets needed to con
 
 Startup will perform some self-checks (such as hudu version, powershell version) and make sure everything is in order before beginning.
 
+If you want to skip migrating one or more Passportal doctypes, set `$PassportalSkipDocTypes` in your environment file.
+
+For example, to skip **Assets** while still migrating everything else:
+
+```powershell
+$PassportalSkipDocTypes = @("asset")
+```
+
+You can list multiple doctypes (for example `@("asset","ssl")`).
+
 <img width="710" height="292" alt="image" src="https://github.com/user-attachments/assets/161bb82e-b973-46d8-8d4e-c482a7257e97" />
 
 If you are experiencing trouble authenticating to Passportal, you might try switching the 'secret key' and 'key id' in your environment file or when you are prompted, they are about the same length and easy to mix-up.

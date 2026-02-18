@@ -5,6 +5,7 @@ $passportalData_APIkeyID="secret key here"
 $PassportalData_SecretKey="key id here"
 $PassportalRubooksPath = "C:\tmp\RunbooksFolder"
 $PassportalDocsConvert = $true
+$PassportalSkipDocTypes = @() # @("asset","ssl") Optional: skip migrating specific Passportal doctypes- leave as empty array if you dont want to skip anything
 $SelectedLocation = @{APIBase="us-clover"; name="United States"}
 $csvPath = "" your absolute path to csv export files
 . .\Passportal-Migration.ps1

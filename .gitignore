@@ -1,4 +1,4 @@
-environ*.ps1
+*environ*.ps1
 *environment*
 !environ.example
 exported-csvs/*/
