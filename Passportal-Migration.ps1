@@ -49,9 +49,7 @@ Set-IncrementedState -newState "Set up and init"
 Set-PrintAndLog -message "using $($selectedLocation.name) / $BaseUri for PassPortal" -Color DarkBlue
 Set-Content -Path $logFile -Value "Starting Passportal Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue
-Set-PrintAndLog -message "Imported Hudu Module... $(Get-HuduModule)" -Color DarkBlue
-Set-PrintAndLog -message "Checked Hudu Credentials... $(Set-HuduInstance)" -Color DarkBlue
-Set-PrintAndLog -message "Checked Hudu Version... $(Get-HuduVersionCompatible)" -Color DarkBlue
+Set-PrintAndLog -message "Imported Hudu Module... $(Set-HuduModuleInitialized)" -Color DarkBlue
 Set-IncrementedState -newState "Check Source data and get Source Data Options"
 
 ### LOAD SOURCEDATA
