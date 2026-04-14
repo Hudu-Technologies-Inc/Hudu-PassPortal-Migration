@@ -1,5 +1,8 @@
 
 # Define and set up some paths
+$workdir = $workdir ?? $PSScriptRoot ?? $(resolve-path .).path
+
+
 $logsFolder=$(join-path "$workdir" "logs")
 $logFile=$(join-path "$logsFolder" "PassPortalLog")
 $downloadsFolder=$(join-path "$workdir" "downloads")
