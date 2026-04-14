@@ -5,7 +5,7 @@ if ($null -eq $passportalData.csvData) {
 $PasswordIDX=0
 $passwordsToProcess = @($passportalData.csvData.passwords) + @($passportalData.csvData.vault)
 
-$internalCompany = select-objectfromlist -objects $(get-huducompanies) -message "Please select your internal company in Hudu for passwords that may not be directly associated with a company in Passportal"
+$internalCompany = select-objectfromlist -objects $(get-huducompanies) -message "Please select your internal company in Hudu for passwords that may not be directly associated with a company in Passportal"; $internalCompany = $internalCompany.company ?? $internalCompany;
 
 foreach ($newCredential in $passwordsToProcess) {
     $credentialName = $(if (-not [string]::IsNullOrEmpty($newCredential.Description)) {$newCredential.Description} else {"$($newCredential.Credential) - $($newCredential.Username)"})
