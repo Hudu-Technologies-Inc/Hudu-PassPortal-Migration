@@ -2,6 +2,7 @@ $workdir = $PSScriptRoot
 ### CONFIGURATION
 ##
 #
+$AssociatePassowrdsAssets = $AssociatePassowrdsAssets ?? $false
 $RunSummary = $null
 $workdir = $workdir ?? $PSScriptRoot
 foreach ($requiredfolder in @("$workdir\logs","$workdir\logs\errored","$workdir\tmp")) {
