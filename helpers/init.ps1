@@ -1,5 +1,8 @@
 
 # Define and set up some paths
+$workdir = $workdir ?? $PSScriptRoot ?? $(resolve-path .).path
+
+
 $logsFolder=$(join-path "$workdir" "logs")
 $logFile=$(join-path "$logsFolder" "PassPortalLog")
 $downloadsFolder=$(join-path "$workdir" "downloads")
@@ -107,7 +110,9 @@ function Set-HuduModuleInitialized {
                 Join-Path (
                     $(if ($PSScriptRoot) { $PSScriptRoot } else { (Resolve-Path .).Path })
                 ) 'HAPI.zip'
-            )
+            ),
+            [string]$HuduBaseURL,
+            [string]$HuduAPIKey
         )
     $AllowHuduGalleryFallback = $false
 
@@ -384,7 +389,7 @@ function Set-HuduModuleInitialized {
     }
 
     #Login to Hudu
-    Set-HuduInstance 
+    Set-HuduInstance  -HuduBaseURL $HuduBaseURL -HuduAPIKey $HuduAPIKey
 
     # Check we have the correct version
     $CurrentVersion = [version]($(Get-HuduAppInfo).version)
