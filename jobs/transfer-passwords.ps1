@@ -5,18 +5,18 @@ if ($null -eq $passportalData.csvData) {
 $PasswordIDX=0
 $passwordsToProcess = @($passportalData.csvData.passwords) + @($passportalData.csvData.vault)
 
+$internalCompany = select-objectfromlist -objects $(get-huducompanies) -message "Please select your internal company in Hudu for passwords that may not be directly associated with a company in Passportal"
+
 foreach ($newCredential in $passwordsToProcess) {
     $credentialName = $(if (-not [string]::IsNullOrEmpty($newCredential.Description)) {$newCredential.Description} else {"$($newCredential.Credential) - $($newCredential.Username)"})
     $clientName = $newCredential.'Client Name' ?? "Vault"
     Write-Host "Starting $($credentialName) for $($clientName)"
     
     # Match Company
+    $MatchedCompany = $null; $MatchedCompany = $($MatchedCompanies | Where-Object {@($_.PPcompany.name, $_.PPcompany.decodedName) -contains $clientName} | Select-Object -First 1).HuduCompany
+    $MatchedCompany = $MatchedCompany ?? $internalCompany
+    $MatchedCompany = $MatchedCompany.company ?? $MatchedCompany
 
-    $MatchedCompany = $($MatchedCompanies | Where-Object {@($_.PPcompany.name, $_.PPcompany.decodedName) -contains $clientName} | Select-Object -First 1).HuduCompany
-    if (-not $MatchedCompany) {
-        $MatchedCompany = Select-ObjectFromList -objects $(get-huducompanies) -message "Which company to match for new credential $(Get-JsonString $newCredential)"
-        $MatchedCompany = $MatchedCompany.company ?? $MatchedCompany
-    }
     Write-Host "Matched Credential $($newCredential) to company $($MatchedCompany.name)"
     
     $matchedAsset = $null
