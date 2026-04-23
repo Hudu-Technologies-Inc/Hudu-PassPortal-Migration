@@ -1,4 +1,10 @@
 $workdir = $PSScriptRoot
+if ($MyInvocation.InvocationName -eq '.') {
+    Write-Host "Script was dot-sourced" -ForegroundColor Green
+} else {
+    Write-Host "Script was executed without dot-sourcing, this is the recommended method of running the script to ensure settings are retained in the session" -ForegroundColor Yellow; write-warning "exiting to prevent issues later on, please dot-source the script by running `. .\yourenvironmentfile.ps1` from powershell 7.5 or later (ideally as Administrator)" -ForegroundColor Red;
+    exit 1
+}
 ### CONFIGURATION
 ##
 #
