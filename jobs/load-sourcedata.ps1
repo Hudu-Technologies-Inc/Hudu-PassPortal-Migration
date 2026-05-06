@@ -1,7 +1,29 @@
 $loadSourceDataStartedAt = Get-Date
 Set-PrintAndLog -message "Starting source-data load from Passportal..." -Color DarkBlue
 
-$passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get).results
+$passportalData.Clients = @()
+$clientPage = 1
+$clientResultsPerPage = 100
+while ($true) {
+    $clientQueryParams = @{
+        resultsPerPage = $clientResultsPerPage
+        pageNum = $clientPage
+    }
+
+    $clientResourceURI = "documents/clients?$(ConvertTo-QueryString -QueryParams $clientQueryParams)"
+    $clientResponse = Get-PassportalObjects -resource $clientResourceURI
+    $clientResults = @($clientResponse.results)
+    $clientResultCount = @($clientResults).Count
+
+    Set-PrintAndLog -message "Client page $clientPage returned $clientResultCount rows." -Color DarkGray
+
+    if (-not $clientResults -or -not $clientResponse.success -or "$clientResults".ToLower() -eq 'null') {
+        break
+    }
+
+    $passportalData.Clients += $clientResults
+    $clientPage++
+}
 Set-PrintAndLog -message "Loaded $($passportalData.Clients.Count) clients from Passportal." -Color DarkBlue
 foreach ($client in $passportalData.clients) {$client | Add-Member -NotePropertyName decodedName -NotePropertyValue $(Get-HTTPDecodedString $client.name) -Force; Set-PrintAndLog -message  "found $($client.id)-  $($client.decodedName)" -Color DarkCyan}
 
