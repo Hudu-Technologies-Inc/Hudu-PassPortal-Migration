@@ -582,6 +582,32 @@ function Omni-Relate {
     if (get-command -name Set-HapiErrorsDirectory -ErrorAction SilentlyContinue){try {Set-HapiErrorsDirectory -skipRetry $false} catch {}}
 
 }
+
+function Get-AssetFieldUniqueValues {
+    param([pscustomobject]$assetLayout,[string]$label)
+    $assetlayout = $assetLayout.asset_layout ?? $assetLayout; $assetlayoutid = [int]($assetlayout.id ?? $null);
+    if (-not $assetlayoutid -or -not $assetLayout) {return $null}
+    if ($assetLayout.fields | Where-Object { $_.label -ieq $label } | Select-Object -First 1) {
+        write-host "found field $label in AL $assetlayoutname" -ForegroundColor Green
+    } else {
+        return $null
+    }
+    Write-Host "obtaining unique field values for $label in Asset Layout $assetLayoutName" -ForegroundColor Green
+    $allassets = Get-HuduAssets -AssetLayoutId $assetlayoutid
+    $matches = @()
+
+    foreach ($a in $allassets) {
+        $asset = $a.asset ?? $a
+
+        $fieldvalue = ($asset.fields | Where-Object { $_.label -ieq $label } | Select-Object -First 1).value
+
+        if ($null -ne $fieldvalue -and -not ([string]::IsNullOrWhiteSpace($fieldvalue))) {
+            $matches += $fieldvalue
+        }
+    }
+
+    return $matches | Sort-Object -Unique
+}
 function Get-HuduCompanyFromName {
     # use index first. Then existing list. Then API call.
     param (

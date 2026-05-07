@@ -24,23 +24,29 @@ foreach ($newCredential in $passwordsToProcess) {
     Write-Host "Matched Credential $($newCredential) to company $($MatchedCompany.name)"
     
     $matchedAsset = $null
+    # Match Asset or Object
+    $companyAssets = $CreatedAssets | Where-Object {$_.HuduAsset.Value.company_id -eq $MatchedCompany.id}
+    $MatchableAssets = $companyAssets | Where-Object {$(Get-StringVariants $_.DocType) -contains $newCredential.Credential}
+    if ($MatchableAssets.count -lt 1) {
+        $MatchableAssets = $(if ($companyAssets.count -gt 1) {$companyAssets} else {$CreatedAssets})
+    } elseif ($MatchableAssets.count -eq 1){
+        $matchedAsset = $MatchableAssets | Select-Object -First 1
+    }
     if ($true -eq $AssociatePassowrdsAssets){
-        # Match Asset or Object
-        $companyAssets = $CreatedAssets | Where-Object {$_.HuduAsset.Value.company_id -eq $MatchedCompany.id}
-        $MatchableAssets = $companyAssets | Where-Object {$(Get-StringVariants $_.DocType) -contains $newCredential.Credential}
-        if ($MatchableAssets.count -lt 1) {
-            $MatchableAssets = $(if ($companyAssets.count -gt 1) {$companyAssets} else {$CreatedAssets})
-        } elseif ($MatchableAssets.count -eq 1){
-            $matchedAsset = $MatchableAssets | Select-Object -First 1
-        }
         $MatchedAsset = $MatchedAsset ?? $(Select-ObjectFromList -objects $MatchableAssets.HuduAsset -message "Which asset to match for new credential $(Get-JsonString $newCredential)? Select 0/skip to just attribute to company" -allowNull $true -inspectObjects $true)
     }
-
     $NewPassSplat= @{
         CompanyId               = $matchedCompany.Id
         Name                    = $credentialName
         Password                = "$($newCredential.Password)"
     }
+    if ($null -ne $matchedAsset){
+        Write-Host "Matched Credential $($newCredential) to asset $($matchedAsset.HuduAsset.name)"
+        $NewPassSplat["PasswordableId"] = $matchedAsset.HuduAsset.Id
+        $NewPassSplat["PasswordableType"] = 'Asset'
+    }
+
+
     $TOTP = $null; $TOTP = $newcredential.'TOTP Secret' ?? $null;
     if (-not [string]::IsNullOrWhiteSpace($TOTP)) {
         $TOTP = "$TOTP".Trim().ToUpper()
@@ -75,12 +81,9 @@ foreach ($newCredential in $passwordsToProcess) {
         $NewPassSplat["Description"] = $Description_or_Notes
     }
 
-    if ($null -ne $MatchedAsset){
-        $NewPassSplat["PasswordableId"] = $MatchedAsset.Id
-        $NewPassSplat["PasswordableType"] = 'Asset'
-    }
 
     try {
+
         $NewPassword = New-HuduPassword @NewPassSplat
         if ($null -ne $NewPassword){
             $CreatedPasswords+=@{

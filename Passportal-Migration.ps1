@@ -101,6 +101,12 @@ Set-IncrementedState -newState "Transfer assets, companies, and layouts into hud
 #     . .\jobs\convert-runbooks-to-articles.ps1
 # }
 
+# Set-IncrementedState -newState "Wrap-Up"
+# . .\jobs\wrap-up.ps1
+
+# Set-IncrementedState -newState "Calculate and Relay Results"
+# . .\jobs\relay-results.ps1
+
 
 # Set-IncrementedState -newState "Complete"
 
