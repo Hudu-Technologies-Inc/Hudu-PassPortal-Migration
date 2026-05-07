@@ -3,63 +3,63 @@
 $workdir = $workdir ?? $PSScriptRoot ?? $(resolve-path .).path
 
 
-# $logsFolder=$(join-path "$workdir" "logs")
-# $logFile=$(join-path "$logsFolder" "PassPortalLog")
-# $downloadsFolder=$(join-path "$workdir" "downloads")
-# $allSitesfolder=$(join-path "$workdir" "sites")
-# $tmpfolder=$(join-path "$workdir" "tmp")
-# $ErroredItemsFolder=$(join-path "$logsFolder" "errored")
-# $csvPath=$csvPath ?? $(join-path $workdir "exported-csvs")
-# Write-Host "Hudu Max Docsize: $HUDU_MAX_DOCSIZE"
-# $PPBaseURIs = @(
-#     @{APIBase="us-clover"
-#     name="United States"},
-#     @{APIBase="ca-clover"
-#     name="Canada"},
-#     @{APIBase="uk-clover"
-#     name="United Kingdom"},
-#     @{APIBase="us-clover"
-#     name="Germany"},
-#     @{APIBase="au-clover"
-#     name="Australia"}
-# )
-# # foreach ($folder in @($logsFolder, $downloadsFolder, $tmpfolder, $allSitesfolder, $ErroredItemsFolder)) {
-# #     if (!(Test-Path -Path "$folder")) { Set-PrintAndLog -message  "Making dir... $(New-Item "$folder" -ItemType Directory)" -Color DarkCyan }
-# #         Set-PrintAndLog -message "Clearing $folder... $(Get-ChildItem -Path "$folder" -File -Recurse -Force | Remove-Item -Force)" -Color DarkCyan
-# # }
-
-# # Set up logging object
-# $RunSummary=$RunSummary ?? @{
-#     State="Set-Up"
-#     CompletedStates=@()
-#     OutputJsonFiles = @{
-#         SelectedSites    =   "$(join-path $logsFolder -ChildPath "sites.json")"
-#         SelectedFiles    =   "$(join-path $logsFolder -ChildPath "files.json")"
-#         SelectedFolders  =   "$(join-path $logsFolder -ChildPath "folders.json")"
-#         ConvertedFiles   =   "$(join-path $logsFolder -ChildPath "converted.json")"
-#         SummaryPath      =   "$(join-path $logsFolder -ChildPath "job-summary.json")"
-#     }
-#     SetupInfo=@{
-#         HuduDestination     = $HuduBaseUrl
-#         HuduMaxContentLength= 4500
-#         HuduVersion         = [version]$HuduAppInfo.version
-#         PowershellVersion   = [version]$PowershellVersion
-#         project_workdir     = $project_workdir
-#         StartedAt           = $(get-date)
-#         FinishedAt          = $null
-#         Duration            = $null
-#     }
-#     JobInfo=@{
-#         MigrationSource     = [System.Collections.ArrayList]@()
-#         MigrationDest       = [PSCustomObject]@{}
-#         AttriutionOptions   = [System.Collections.ArrayList]@(
-#             @{id=-1; name="Skip (Don't Import)"; decodedName="Skip (Don't Import)"}
-#             @{id= 0; name="Create New"; decodedName="Create New"}
-#         )
-#     }
-#     Errors                  = [System.Collections.ArrayList]@()
-#     Warnings                = [System.Collections.ArrayList]@()
+$logsFolder=$(join-path "$workdir" "logs")
+$logFile=$(join-path "$logsFolder" "PassPortalLog")
+$downloadsFolder=$(join-path "$workdir" "downloads")
+$allSitesfolder=$(join-path "$workdir" "sites")
+$tmpfolder=$(join-path "$workdir" "tmp")
+$ErroredItemsFolder=$(join-path "$logsFolder" "errored")
+$csvPath=$csvPath ?? $(join-path $workdir "exported-csvs")
+Write-Host "Hudu Max Docsize: $HUDU_MAX_DOCSIZE"
+$PPBaseURIs = @(
+    @{APIBase="us-clover"
+    name="United States"},
+    @{APIBase="ca-clover"
+    name="Canada"},
+    @{APIBase="uk-clover"
+    name="United Kingdom"},
+    @{APIBase="us-clover"
+    name="Germany"},
+    @{APIBase="au-clover"
+    name="Australia"}
+)
+# foreach ($folder in @($logsFolder, $downloadsFolder, $tmpfolder, $allSitesfolder, $ErroredItemsFolder)) {
+#     if (!(Test-Path -Path "$folder")) { Set-PrintAndLog -message  "Making dir... $(New-Item "$folder" -ItemType Directory)" -Color DarkCyan }
+#         Set-PrintAndLog -message "Clearing $folder... $(Get-ChildItem -Path "$folder" -File -Recurse -Force | Remove-Item -Force)" -Color DarkCyan
 # }
+
+# Set up logging object
+$RunSummary=$RunSummary ?? @{
+    State="Set-Up"
+    CompletedStates=@()
+    OutputJsonFiles = @{
+        SelectedSites    =   "$(join-path $logsFolder -ChildPath "sites.json")"
+        SelectedFiles    =   "$(join-path $logsFolder -ChildPath "files.json")"
+        SelectedFolders  =   "$(join-path $logsFolder -ChildPath "folders.json")"
+        ConvertedFiles   =   "$(join-path $logsFolder -ChildPath "converted.json")"
+        SummaryPath      =   "$(join-path $logsFolder -ChildPath "job-summary.json")"
+    }
+    SetupInfo=@{
+        HuduDestination     = $HuduBaseUrl
+        HuduMaxContentLength= 4500
+        HuduVersion         = [version]$HuduAppInfo.version
+        PowershellVersion   = [version]$PowershellVersion
+        project_workdir     = $project_workdir
+        StartedAt           = $(get-date)
+        FinishedAt          = $null
+        Duration            = $null
+    }
+    JobInfo=@{
+        MigrationSource     = [System.Collections.ArrayList]@()
+        MigrationDest       = [PSCustomObject]@{}
+        AttriutionOptions   = [System.Collections.ArrayList]@(
+            @{id=-1; name="Skip (Don't Import)"; decodedName="Skip (Don't Import)"}
+            @{id= 0; name="Create New"; decodedName="Create New"}
+        )
+    }
+    Errors                  = [System.Collections.ArrayList]@()
+    Warnings                = [System.Collections.ArrayList]@()
+}
 
 function Set-IncrementedState {
     param (

@@ -155,12 +155,12 @@ function Get-PassportalFieldMapForType {
             @{ label="Location"; field_type="Text" }
         )
         remote_access = @(
-            @{ label="Site"; field_type="Text" },
-            @{ label="Client VPN URL"; field_type="Text" },
-            @{ label="Client VPN Installer"; field_type="Text" },
-            @{ label="Remote Desktop"; field_type="Text" },
-            @{ label="Webmail"; field_type="Text" },
-            @{ label="Password"; field_type="Password" }
+            @{ label="Remote Access Technology"; field_type="Text" },
+            @{ label="Remote Access URL"; field_type="Text" },
+            @{ label="Remote Access Workstation"; field_type="Text" },
+            @{ label="Authorized User(s)"; field_type="Text" },
+            @{ label="2FA Type"; field_type="Text" },
+            @{ label="2FA Details"; field_type="RichText" }
         )
         vendor = @(
             @{ label="Vendor Website"; field_type="Text" },

@@ -1,6 +1,6 @@
 $passportalData.csvData = $passportalData.csvData ?? $(Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"}))
 if ($null -eq $passportalData.csvData) {
-    Set-Prontandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
+    Set-Printandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
 } else { write-host "CSV data loaded!"}
 $PasswordIDX=0
 $passwordsToProcess = @($passportalData.csvData.passwords) + @($passportalData.csvData.vault)
