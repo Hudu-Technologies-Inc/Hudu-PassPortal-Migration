@@ -12,6 +12,71 @@ function Unset-Vars {
         }
     }
 }
+
+function Get-HuduCompanyFromName {
+    # use index first. Then existing list. Then API call.
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$CompanyName,
+        [array]$HuduCompanies,
+        [bool]$includenicknames = $false,
+        [bool]$deepCompanySearch = $false
+    )
+    if ([string]::IsNullOrWhiteSpace($CompanyName)) { return $null }
+
+        $normalizedCompanyName = normalize-companyName -Text $CompanyName
+    # matched first
+    $matchedCompany = $null
+    if ($deepCompanySearch -eq $true){
+        $matchedCompany = get-huducompanies | Where-Object {$(normalize-companyName -Text $_.name) -ieq (normalize-companyName -Text $normalizedCompanyName)} | Select-Object -First 1
+    }
+
+    if ($null -ne $matchedCompany){
+      $matchedCompany = $matchedCompany.HuduCompany ?? $matchedCompany
+      write-host "matched company using prematched companies: $($matchedCompany.name)"
+      return $matchedCompany
+    }    
+
+    # then existing list
+    $matchedCompany = $matchedCompany ?? $HuduCompanies | where-object {
+            ($_.name -ieq $CompanyName) -or
+            [bool]$(test-equiv -A $_.name -B $CompanyName)`
+        } | Select-Object -First 1
+
+    if ($true -eq $includenicknames){
+        $matchedCompany =$matchedCompany ?? $HuduCompanies | where-object {
+                ($_.nickname -ieq $CompanyName) -or
+                [bool]$(test-equiv -A $_.nickname -B $CompanyName)`
+            } | Select-Object -First 1
+    }
+    if ($null -ne $matchedCompany){
+      $matchedCompany = $matchedCompany.HuduCompany ?? $matchedCompany
+      write-host "matched company using companies array: $($matchedCompany.name)"
+      return $matchedCompany
+    }
+
+
+    # finally API call
+    if ($deepCompanySearch -eq $false){return $matchedCompany}
+
+    $matchedCompany = $matchedCompany ?? $(Get-HuduCompanies -Name $CompanyName | select-object -first 1)
+    if ($null -eq $matchedCompany){
+          $matchedCompany = $matchedCompany ?? $(Get-HuduCompanies) | where-object {
+            ($_.name -ieq $CompanyName) -or
+            [bool]$(test-equiv -A $_.name -B $CompanyName) -or 
+            ($normalizedCompanyName -ieq (normalize-companyName -Text $_.name))  -or
+            ($normalizedCompanyName -icontains (normalize-companyName -Text $_.name)) 
+        } | Select-Object -First 1
+    }
+    if ($null -ne $matchedCompany){
+      write-host "matched company using API call: $($matchedCompany.name)"
+      $matchedCompany = $matchedCompany.HuduCompany ?? $matchedCompany
+      return $matchedCompany
+    }
+    $matchedCompany = $matchedCompany.HuduCompany ?? $matchedCompany
+    return $matchedCompany
+}
+
 function Get-EnsuredPath {
     param([string]$path)
     $outpath = if (-not $path -or [string]::IsNullOrWhiteSpace($path)) { $(join-path $(Resolve-Path .).path "debug") } else {$path}

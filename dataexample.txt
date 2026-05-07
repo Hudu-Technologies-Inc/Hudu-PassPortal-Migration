@@ -1,0 +1,163 @@
+        {
+          "ID": 5225356,
+          "Fields": {
+            "name": "KAL-007565",
+            "tags": [],
+            "0": {
+              "name": "Name",
+              "description": "",
+              "value": {
+                "type": "string",
+                "text": "KAL-007565"
+              }
+            },
+            "1": {
+              "name": "Type",
+              "description": "",
+              "value": {
+                "type": "string",
+                "text": "Workstation"
+              }
+            },
+            "2": {
+              "name": "Status",
+              "description": "Description",
+              "value": {
+                "type": "string",
+                "text": "Online"
+              }
+            },
+            "3": null,
+            "4": null,
+            "5": null,
+            "6": null,
+            "7": null,
+            "8": {
+              "name": "Serial Number",
+              "description": "",
+              "value": {
+                "type": "string",
+                "text": "4Z2QJH2"
+              }
+            },
+            "9": null,
+            "10": {
+              "name": "Manufacturer",
+              "description": "",
+              "value": {
+                "text": "Dell",
+                "id": 1843839,
+                "type": "vendors"
+              },
+              "attribute": [
+                {
+                  "text": "Dell",
+                  "id": 1843839,
+                  "type": "vendors"
+                }
+              ]
+            },
+            "11": null,
+            "12": null,
+            "13": {
+              "name": "Location",
+              "description": "",
+              "value": {
+                "text": "Main office",
+                "id": 5225344,
+                "type": "locations"
+              },
+              "attribute": [
+                {
+                  "text": "Main office",
+                  "id": 5225344,
+                  "type": "locations"
+                }
+              ]
+            },
+            "14": null,
+            "15": null,
+            "16": null,
+            "17": null,
+            "18": null,
+            "19": {
+              "name": "Hostname",
+              "description": "",
+              "value": {
+                "type": "string",
+                "text": "KAL-007565"
+              }
+            },
+            "20": {
+              "name": "Primary IP",
+              "description": "",
+              "value": {
+                "type": "string",
+                "text": "10.5.252.135"
+              }
+            },
+            "21": {
+              "name": "MAC Address",
+              "description": "",
+              "value": {
+                "type": "string",
+                "text": "48-4D-7E-F6-C7-B1"
+              }
+            },
+            "22": {
+              "name": "Default Gateway",
+              "description": "",
+              "value": {
+                "type": "string",
+                "text": "24.234.186.180"
+              }
+            },
+            "23": null,
+            "24": {
+              "name": "Operating System",
+              "description": "Description",
+              "value": {
+                "type": "string",
+                "text": "Microsoft Windows 7 Professional x64"
+              }
+            },
+            "25": null,
+            "26": null,
+            "27": null,
+            "28": null,
+            "29": {
+              "name": "Portal URL",
+              "description": null,
+              "value": {
+                "type": "string",
+                "text": "https://automate.stimulustech.com/WCC2/Computers"
+              }
+            },
+            "30": null,
+            "31": {
+              "name": "ID",
+              "description": "ID of device",
+              "value": {
+                "type": "string",
+                "text": "6153"
+              }
+            },
+            "32": {
+              "name": "Integration Type",
+              "description": null,
+              "value": {
+                "type": "string",
+                "text": "Automate"
+              }
+            },
+            "33": {
+              "name": "Last Logged in User",
+              "description": "",
+              "value": {
+                "type": "string",
+                "text": "kalbindustries.local\\Markk"
+              }
+            },
+            "34": null
+          }
+        },

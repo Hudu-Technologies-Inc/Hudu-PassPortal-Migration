@@ -1,0 +1,163 @@
+      "details": [
+        {
+          "ID": 6730680,
+          "Fields": {
+            "name": "server.fs01.file",
+            "tags": [],
+            "0": {
+              "name": "Backup Job Description",
+              "description": "ie) All Servers, Application Specific, Financial Data",
+              "value": {
+                "type": "string",
+                "text": "All files and Application Data"
+              }
+            },
+            "1": {
+              "name": "Backup Type",
+              "description": "Select the type of backup",
+              "value": {
+                "type": "string",
+                "text": "Files"
+              }
+            },
+            "2": {
+              "name": "Backup Technology",
+              "description": "Select the backup technology used",
+              "value": {
+                "type": "string",
+                "text": "VegasBackup"
+              }
+            },
+            "3": {
+              "name": "Protected Servers",
+              "description": "Servers that are being backed up",
+              "value": {
+                "text": "FS01",
+                "id": 5223133,
+                "type": "assets"
+              },
+              "attribute": [
+                {
+                  "text": "FS01",
+                  "id": 5223133,
+                  "type": "assets"
+                }
+              ]
+            },
+            "4": null,
+            "5": null,
+            "6": {
+              "name": "Backup Frequency",
+              "description": "How frequently do backups run?",
+              "value": {
+                "type": "string",
+                "text": "Daily"
+              }
+            },
+            "7": {
+              "name": "Backup Window",
+              "description": "At what time do backups occur?",
+              "value": {
+                "type": "string",
+                "text": "22:00-Until Finish"
+              }
+            },
+            "8": {
+              "name": "Backup Account Credentials",
+              "description": "",
+              "value": {
+                "text": "stjoseph",
+                "id": 6146444,
+                "type": "credentials"
+              },
+              "attribute": [
+                {
+                  "text": "stjoseph",
+                  "id": 6146444,
+                  "type": "credentials"
+                }
+              ]
+            },
+            "9": {
+              "name": "Backup Job Encryption Password",
+              "description": "",
+              "value": {
+                "text": "server.fs01.file Encryption Password",
+                "id": 6149672,
+                "type": "credentials"
+              },
+              "attribute": [
+                {
+                  "text": "server.fs01.file Encryption Password",
+                  "id": 6149672,
+                  "type": "credentials"
+                }
+              ]
+            },
+            "10": {
+              "name": "Data Recovery Approver",
+              "description": "Who approves restore requests?",
+              "value": {
+                "text": "Vince Murone",
+                "id": 5324619,
+                "type": "contacts"
+              },
+              "attribute": [
+                {
+                  "text": "Vince Murone",
+                  "id": 5324619,
+                  "type": "contacts"
+                }
+              ]
+            },
+            "11": {
+              "name": "Next Restore Verification Date",
+              "description": "Date that the next test restore should be peformed",
+              "value": {
+                "type": "string",
+                "text": "2019/07/07"
+              }
+            },
+            "12": null,
+            "13": null,
+            "14": {
+              "name": "Backup Service Account",
+              "description": "Account used on server or workstation run application that backs up data.",
+              "value": {
+                "text": "backup",
+                "id": 5980243,
+                "type": "credentials"
+              },
+              "attribute": [
+                {
+                  "text": "backup",
+                  "id": 5980243,
+                  "type": "credentials"
+                }
+              ]
+            },
+            "15": null,
+            "16": {
+              "name": "Local Backup Type",
+              "description": "Select type of local backup",
+              "value": {
+                "type": "string",
+                "text": "Please Select"
+              }
+            },
+            "17": null,
+            "18": null,
+            "19": null,
+            "20": null,
+            "21": {
+              "name": "Offsite Location",
+              "description": "Where are Office Backups Stored?",
+              "value": {
+                "type": "string",
+                "text": "Please Select"
+              }
+            },
+            "22": null,
+            "23": null
+          }
+        },
