@@ -13,6 +13,575 @@ function Unset-Vars {
     }
 }
 
+function normalize-companyName {
+    param([string]$Text)
+
+    ($Text `
+        -replace '(?i)\binc\b', '' `
+        -replace '[\.,]', '' `
+        -replace '\s+', ' '
+    ).Trim()
+}
+
+function Omni-Relate {
+    param(
+        [bool]$includeArticles=$true,
+        [bool]$includeProcesses=$true,
+        [bool]$includeWebsites=$true,
+        [bool]$includeIPAM=$true,
+        [bool]$includePasswords=$true,
+        [bool]$dryRun=$false
+    )
+
+    function _Normalize-AssetName {
+        param([string]$Name)
+        if ([string]::IsNullOrWhiteSpace($Name)) { return "" }
+        $n = $Name.Normalize([Text.NormalizationForm]::FormKC)
+        $n = $n -replace '&nbsp;',' ' -replace '\s+',' '
+        $n = $n.Trim().ToLowerInvariant()
+        return $n
+    }
+
+    function _Normalize-WebsiteURL {
+        param([string]$Url)
+        if ([string]::IsNullOrWhiteSpace($Url)) { return $null }
+        $u = $Url.Trim()
+        if ($u -match '^(https?://)?(?<host>[^/]+)(?<rest>/.*)?$') {
+            $hostname = $matches.host.ToLowerInvariant()
+            return $hostname.ToLowerInvariant()
+        }
+        return $u.ToLowerInvariant()
+    }
+
+    function _Add-UniqueText {
+        param(
+            [System.Collections.Generic.List[string]]$List,
+            [string]$Value
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Value)) { return }
+
+        $trimmed = $Value.Trim()
+        if (-not $List.Contains($trimmed)) {
+            $null = $List.Add($trimmed)
+        }
+    }
+
+    function _Contains-IgnoreCase {
+        param(
+            [string]$Text,
+            [string]$Value
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Text) -or [string]::IsNullOrWhiteSpace($Value)) { return $false }
+        return $Text.IndexOf($Value, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+    }
+
+    function _Test-TextsContainNeedle {
+        param(
+            [string[]]$Texts,
+            [string]$Needle,
+            [int]$MinimumLength = 5
+        )
+
+        if ([string]::IsNullOrWhiteSpace($Needle)) { return $false }
+
+        $candidate = $Needle.Trim()
+        $looksStructured = $candidate -match '[\.:/@\\]'
+        if (-not $looksStructured -and "$candidate".length -lt $MinimumLength) {
+            return $false
+        }
+
+        foreach ($text in @($Texts)) {
+            if (_Contains-IgnoreCase -Text $text -Value $candidate) {
+                return $true
+            }
+        }
+
+        return $false
+    }
+
+    function _Get-AssetIdentifiers {
+        param($Asset)
+
+        $identifiers = [System.Collections.Generic.List[string]]::new()
+        _Add-UniqueText -List $identifiers -Value $Asset.name
+
+        $normalizedAssetName = _Normalize-AssetName $Asset.name
+        if (-not [string]::IsNullOrWhiteSpace($normalizedAssetName) -and "$normalizedAssetName".length -ge 5 -and $normalizedAssetName -ine 'main') {
+            _Add-UniqueText -List $identifiers -Value $normalizedAssetName
+        }
+
+        foreach ($field in @($Asset.fields | Where-Object { $_.field_type -eq 'Website' })) {
+            _Add-UniqueText -List $identifiers -Value $field.value
+            _Add-UniqueText -List $identifiers -Value (_Normalize-WebsiteURL $field.value)
+        }
+
+        return @($identifiers)
+    }
+
+    function _Get-AssetsMentionedInTexts {
+        param(
+            [object[]]$Assets,
+            $SourceAsset,
+            [string[]]$Texts
+        )
+
+        if (-not $Assets -or -not $Texts -or $Texts.Count -eq 0) { return @() }
+
+        $matchedAssets = [System.Collections.Generic.List[object]]::new()
+
+        foreach ($asset in @($Assets)) {
+            if ($null -eq $asset -or [string]$asset.id -eq [string]$SourceAsset.id) { continue }
+
+            $normalizedName = _Normalize-AssetName $asset.name
+            if ([string]::IsNullOrWhiteSpace($normalizedName) -or $normalizedName -ieq 'main' -or "$normalizedName".Length -le 5) {
+                continue
+            }
+
+            $identifiers = [System.Collections.Generic.List[string]]::new()
+            _Add-UniqueText -List $identifiers -Value $asset.name
+            _Add-UniqueText -List $identifiers -Value $normalizedName
+
+            foreach ($identifier in @($identifiers)) {
+                if (_Test-TextsContainNeedle -Texts $Texts -Needle $identifier -MinimumLength 6) {
+                    $null = $matchedAssets.Add($asset)
+                    break
+                }
+            }
+        }
+
+        return @($matchedAssets)
+    }
+
+    function _Get-PasswordFolderName {
+        param(
+            $Password,
+            [object[]]$PasswordFolders
+        )
+
+        if ($null -eq $Password -or $null -eq $Password.password_folder_id) { return $null }
+
+        return ($PasswordFolders | Where-Object { $_.id -eq $Password.password_folder_id } | Select-Object -First 1).name
+    }
+
+    function _Get-NonAssetSearchTexts {
+        param(
+            [string]$Type,
+            $Item,
+            [object[]]$PasswordFolders
+        )
+
+        $texts = [System.Collections.Generic.List[string]]::new()
+
+        switch ($Type) {
+            'Website' {
+                _Add-UniqueText -List $texts -Value $Item.name
+                _Add-UniqueText -List $texts -Value $Item.notes
+                _Add-UniqueText -List $texts -Value (_Normalize-WebsiteURL $Item.name)
+                if ($Item.PSObject.Properties['url']) {
+                    _Add-UniqueText -List $texts -Value $Item.url
+                    _Add-UniqueText -List $texts -Value (_Normalize-WebsiteURL $Item.url)
+                }
+            }
+            'Article' {
+                _Add-UniqueText -List $texts -Value $Item.name
+                _Add-UniqueText -List $texts -Value $Item.content
+            }
+            'Procedure' {
+                _Add-UniqueText -List $texts -Value $Item.name
+                foreach ($task in @($Item.procedure_tasks_attributes)) {
+                    if ($task -is [string]) {
+                        _Add-UniqueText -List $texts -Value $task
+                        continue
+                    }
+
+                    _Add-UniqueText -List $texts -Value $task.name
+                    if ($task.PSObject.Properties['description']) {
+                        _Add-UniqueText -List $texts -Value $task.description
+                    }
+                }
+            }
+            'AssetPassword' {
+                _Add-UniqueText -List $texts -Value $Item.name
+                _Add-UniqueText -List $texts -Value $Item.notes
+                _Add-UniqueText -List $texts -Value $Item.description
+                _Add-UniqueText -List $texts -Value (_Get-PasswordFolderName -Password $Item -PasswordFolders $PasswordFolders)
+            }
+            'Network' {
+                _Add-UniqueText -List $texts -Value $Item.name
+                _Add-UniqueText -List $texts -Value $Item.notes
+                _Add-UniqueText -List $texts -Value $Item.description
+                foreach ($propertyName in @('network', 'cidr', 'subnet', 'gateway')) {
+                    if ($Item.PSObject.Properties[$propertyName]) {
+                        _Add-UniqueText -List $texts -Value ([string]$Item.$propertyName)
+                    }
+                }
+            }
+            'IPAddress' {
+                _Add-UniqueText -List $texts -Value $Item.name
+                _Add-UniqueText -List $texts -Value $Item.notes
+                _Add-UniqueText -List $texts -Value $Item.description
+                foreach ($propertyName in @('ip_address', 'address', 'hostname')) {
+                    if ($Item.PSObject.Properties[$propertyName]) {
+                        _Add-UniqueText -List $texts -Value ([string]$Item.$propertyName)
+                    }
+                }
+            }
+        }
+
+        return @($texts)
+    }
+
+    function _Get-RelationTargetIdentifiers {
+        param(
+            [string]$Type,
+            $Item,
+            [object[]]$PasswordFolders
+        )
+
+        if ($Type -eq 'Asset') {
+            return @(_Get-AssetIdentifiers -Asset $Item)
+        }
+
+        $identifiers = [System.Collections.Generic.List[string]]::new()
+        _Add-UniqueText -List $identifiers -Value $Item.name
+
+        switch ($Type) {
+            'Website' {
+                _Add-UniqueText -List $identifiers -Value (_Normalize-WebsiteURL $Item.name)
+                if ($Item.PSObject.Properties['url']) {
+                    _Add-UniqueText -List $identifiers -Value $Item.url
+                    _Add-UniqueText -List $identifiers -Value (_Normalize-WebsiteURL $Item.url)
+                }
+            }
+            'Procedure' {
+                foreach ($task in @($Item.procedure_tasks_attributes)) {
+                    if ($task -is [string]) {
+                        _Add-UniqueText -List $identifiers -Value $task
+                    } else {
+                        _Add-UniqueText -List $identifiers -Value $task.name
+                    }
+                }
+            }
+            'AssetPassword' {
+                _Add-UniqueText -List $identifiers -Value (_Get-PasswordFolderName -Password $Item -PasswordFolders $PasswordFolders)
+            }
+            'Network' {
+                foreach ($propertyName in @('network', 'cidr', 'subnet', 'gateway')) {
+                    if ($Item.PSObject.Properties[$propertyName]) {
+                        _Add-UniqueText -List $identifiers -Value ([string]$Item.$propertyName)
+                    }
+                }
+            }
+            'IPAddress' {
+                foreach ($propertyName in @('ip_address', 'address', 'hostname')) {
+                    if ($Item.PSObject.Properties[$propertyName]) {
+                        _Add-UniqueText -List $identifiers -Value ([string]$Item.$propertyName)
+                    }
+                }
+            }
+        }
+
+        return @($identifiers)
+    }
+
+    function _New-TrackedRelation {
+        param(
+            [string]$CompanyName,
+            [string]$FromType,
+            [object]$FromId,
+            [string]$FromName,
+            [string]$ToType,
+            [object]$ToId,
+            [string]$ToName,
+            [string]$RelationLabel,
+            [hashtable]$SeenRelations,
+            [switch]$DryRun
+        )
+
+        if ($FromType -eq $ToType -and [string]$FromId -eq [string]$ToId) { return }
+        if ($FromType -eq "IPAddress" -and $ToType -eq "IPAddress") { return }
+
+        $relationKey = "$FromType|$FromId|$ToType|$ToId"
+        if ($SeenRelations.ContainsKey($relationKey)) { return }
+        $SeenRelations[$relationKey] = $true
+
+        Write-Host "[$CompanyName] '$FromName' ($FromId) mentions $RelationLabel -> '$ToName' ($ToId)"
+
+        if ($DryRun) { return }
+
+        try {
+            $null = New-HuduRelation -FromableType $FromType -ToableType $ToType -FromableID $FromId -ToableID $ToId
+        } catch {
+            Write-Warning "Failed relation creation for $FromType/$FromId -> $ToType/$ToId : $($_.Exception.Message)"
+        }
+    }
+
+    if (get-command -name Set-HapiErrorsDirectory -ErrorAction SilentlyContinue){try {Set-HapiErrorsDirectory -skipRetry $true} catch {}}
+    write-host "getting companies"; $allcompanies = get-huducompanies;
+    write-host "getting assets"; $allAssets = get-huduassets;
+    if ($includewebsites){write-host "getting websites"; $allWebsites = get-huduwebsites;} else {write-host "skipping websites"; $allWebsites = @();}
+    if ($includeArticles){write-host "getting articles"; $allArticles = get-huduarticles;} else {write-host "skipping articles"; $allArticles = @();}
+    if ($includeProcesses){write-host "getting processes"; $allProcesses = Get-HuduProcedures;} else {write-host "skipping processes"; $allProcesses = @();}
+    if ($includeIPAM){
+        write-host "getting networks"; $allNetworks = Get-HuduNetworks;
+        write-host "getting addresses"; $alladdresses = get-huduipaddresses;
+    } else {write-host "skipping IPAM"; $allNetworks = @(); $alladdresses = @();}
+    if ($includePasswords){
+        write-host "getting passwords"; $allPasswords = get-hudupasswords;
+        write-host "getting password folders"; $allPasswordFolders = get-hudupasswordfolders;
+    } else {write-host "skipping passwords"; $allPasswords = @(); $allPasswordFolders = @();}
+
+
+
+    foreach ($c in $allcompanies) { 
+
+        $companyAssets = $allAssets | Where-Object { $_.company_id -eq $c.id }
+        $companywebsites = $allWebsites | Where-Object { $_.company_id -eq $c.id }
+        $companyArticles = $allArticles | Where-Object { $_.company_id -eq $c.id }
+        $companyProcesses = $allProcesses | Where-Object { $_.company_id -eq $c.id }
+        $companyNetworks = $allNetworks | Where-Object { $_.company_id -eq $c.id }
+        $companyAddresses = $alladdresses | Where-Object { $_.company_id -eq $c.id }
+        $companypasswords = $allPasswords | Where-Object { $_.company_id -eq $c.id }
+        $companypasswordfolders = $allPasswordFolders | Where-Object { $_.company_id -eq $c.id }
+
+        foreach ($i in @($companywebsites,$companyArticles,$companyProcesses,$companyNetworks,$companyAddresses,$companyAssets,$companypasswords,$companypasswordfolders) | Where-Object { $_.count -gt 0 }) {
+            write-host "Company '$($c.name)' has $($i.count) items of type $($i[0].psobject.typeNames[0])" -ForegroundColor DarkCyan
+        }
+
+        $companyProcedureTaskNames = $companyProcesses.procedure_tasks_attributes.name | sort-object -unique
+        $companyProcedureAssignments = $companyProcesses.procedure_tasks_attributes.first_assigned_user_name | sort-object -unique
+
+
+        $companyAssetsByName = $companyAssets | Group-Object { _Normalize-AssetName $_.name } -AsHashTable -AsString
+        $companySeenRelations = @{}
+
+        foreach ($a in $companyAssets) {
+            $normalizedAssetName = _Normalize-AssetName $a.name
+            write-host "Processing asset '$($a.name)' ($($a.id))"
+
+
+            $mentionedWebsites = @()
+            $mentionedArticles = @()
+            $mentionedAssets = @()
+            $mentionedProcedures = @()
+            $mentionedPasswords = @()
+            $networksMentioned = @()
+            $addressesMentioned = @()
+
+
+            # start out with association by name (if not generalized)
+            if ($normalizedAssetName -ieq "main" -or "$normalizedAssetName".length -lt 5) {
+                write-host "Skipping match by name on too-generic of asset '$($a.name)' ($($a.id)) due to short or generic name" -ForegroundColor Yellow
+            } else {
+            if ($companywebsites) {
+                $mentionedWebsites = $companywebsites | Where-Object { $_.Notes -and ($_.Notes.Contains($normalizedAssetName) -or $_.Notes.Contains($a.name)) }
+            }
+            if ($companyArticles) {
+                $mentionedArticles = $companyArticles | Where-Object { ($_.Name -and $_.Content.Contains($a.name)) -or ($_.Content -and $_.Content.Contains($normalizedAssetName)) }
+            }
+            if ($companyProcesses) {
+                $mentionedProcedures = $companyProcesses | Where-Object { ($_.name -and $_.name.Contains($normalizedAssetName)) -or ($_.procedure_tasks_attributes.name -and $_.procedure_tasks_attributes.name.Contains($normalizedAssetName)) -or ($_.name -and $_.name.Contains($a.name)) -or ($_.procedure_tasks_attributes.name -and $_.procedure_tasks_attributes.name.Contains($a.name)) }
+            }
+            if ($companypasswords) {
+                $mentionedPasswords = $companypasswords | Where-Object { ($_.name -and ($_.name.Contains($normalizedAssetName) -or $_.name.Contains($a.name))) -or ($_.notes -and ($_.notes.Contains($normalizedAssetName) -or $_.notes.Contains($a.name)) -or ($_.description -and ($_.description.Contains($normalizedAssetName) -or $_.description.Contains($a.name)))) }
+            }}
+            
+
+            # websites where name or url is mentioned in text/richtext fields of the asset
+            # articles with content or name mentioned in a website field (either website field or text/richtext fields)
+            $a.fields | Where-Object {$_.field_type -eq "Website"} | ForEach-Object {
+                $fieldValue = $_.value
+                $fieldvaluenormalized = _Normalize-WebsiteURL $fieldValue
+                foreach ($companyProcess in $companyProcesses){ # procedure or tasks contain website field value or asset name
+                    if (($companyProcess.name -and $companyProcess.name.Contains($fieldValue) -or $companyProcess.procedure_tasks_attributes.name -and $companyProcess.procedure_tasks_attributes.name.Contains($fieldValue)) -or `
+                        ($companyProcess.name -and $companyProcess.name.Contains($fieldValue) -or $companyProcess.procedure_tasks_attributes.name -and $companyProcess.procedure_tasks_attributes.name.Contains($fieldValue))){
+                        $mentionedProcedures += $companyProcess
+                    }
+                }
+                foreach ($password in $companypasswords){ # password or password notes contain website field value or asset name
+                    if (($password.name -and $password.name.Contains($fieldValue)) -or ($password.notes -and $password.notes.Contains($fieldValue)) -or ($password.name -and $password.name.Contains($a.name)) -or ($password.notes -and $password.notes.Contains($a.name))){
+                        $mentionedPasswords += $password
+                    } elseif ($null -ne $password.password_folder_id){
+                        $passwordFolder = $companypasswordfolders | Where-Object { $_.id -eq $password.password_folder_id } | Select-Object -First 1
+                        if ($passwordFolder.name -and $fieldValue -and $passwordFolder.name.Contains($fieldValue) -or $passwordFolder.name -and $fieldValue -and $passwordFolder.name.Contains($a.name)){
+                            $mentionedPasswords += $password
+                        }
+                    }
+                }
+                foreach ($network in $companyNetworks){
+                    if ($network.name -and $network.name.Contains($fieldValue) -or $network.notes -and $network.notes.Contains($fieldValue) -or $network.name -and $network.name.Contains($a.name) -or $network.notes -and $network.notes.Contains($a.name) -or $network.description -and ( $network.description.Contains($fieldValue) -or $network.description.Contains($a.name) -or $network.description.Contains($fieldvaluenormalized)) ){
+                        $networksMentioned += $network
+                    }
+                }
+                foreach ($address in $companyaddresses){
+                    if ($address.name -and $address.name.Contains($fieldValue) -or $address.notes -and $address.notes.Contains($fieldValue) -or $address.name -and $address.name.Contains($a.name) -or $address.notes -and $address.notes.Contains($a.name) -or $address.description -and ( $address.description.Contains($fieldValue) -or $address.description.Contains($a.name) -or $address.description.Contains($fieldvaluenormalized)) ){
+                        $addressesMentioned += $address
+                    }
+                }
+                $mentionedWebsites += $companywebsites | Where-Object { "$fieldvaluenormalized*" -ilike "$(_Normalize-WebsiteURL $_.name)*" -or $_.name -icontains "$($fieldvaluenormalized)" -or $_.name -icontains $normalizedAssetName }
+                $mentionedArticles += $companyArticles | Where-Object { $_.content -and $_.content.Contains("$($fieldvaluenormalized)") -or ($_.Name -and $_.Name.Contains("$($fieldvaluenormalized)")) }
+                $mentionedAssets += $companyAssets | Where-Object { $_.name -and $_.name.Contains("$($fieldvaluenormalized)") }
+            }
+            $a.fields | Where-Object {$_.field_type -eq "ConfidentialText"} | ForEach-Object {
+                if (($_.value -and $_.value -eq $password.password) -or ($_.value -and $_.value -eq $password.notes) -or ($_.value -and $_.value -eq $a.name) -or ($_.value -and $_.value -eq $password.name)){
+                    $mentionedPasswords += $password
+                } 
+            }
+
+            $a.fields | Where-Object {$_.field_type -eq "RichText" -or $_.field_type -ieq "Heading"  -or $_.field_type -ieq "Embed"} | ForEach-Object {
+                $fieldValue = $_.value
+                foreach ($companyProcess in $companyProcesses){
+                    if (($companyProcess.name -and $fieldValue -icontains $companyProcess.name -or $companyProcess.procedure_tasks_attributes.name -and $fieldValue -icontains $companyProcess.procedure_tasks_attributes.name)){
+                        $mentionedProcedures += $companyProcess
+                    }
+                }
+                foreach ($password in $companypasswords){ 
+                    if (($password.name -and $fieldValue -icontains $password.name) -or ($password.notes -and $fieldValue -icontains $password.notes) -or ($password.name -and $fieldValue -icontains $a.name) -or ($password.notes -and $fieldValue -icontains $a.name)){
+                        $mentionedPasswords += $password
+                    } elseif ($null -ne $password.password_folder_id){
+                        $passwordFolder = $companypasswordfolders | Where-Object { $_.id -eq $password.password_folder_id } | Select-Object -First 1
+                        if ($passwordFolder.name -and $fieldValue -and $fieldValue -icontains $passwordFolder.name -or $passwordFolder.name -and $fieldValue -icontains $a.name){
+                            $mentionedPasswords += $password
+                        }
+                    }
+                }
+                foreach ($network in $companyNetworks){
+                    if ($network.name -and $fieldValue -icontains $network.name -or $network.notes -and $fieldValue -icontains $network.notes -or $network.name -and $fieldValue -icontains $a.name -or $network.notes -and $fieldValue -icontains $a.name -or $network.description -and ( $fieldValue -icontains $network.description) ){
+                        $networksMentioned += $network
+                    }
+                }
+                foreach ($address in $companyaddresses){
+                    if ($address.name -and $fieldValue -icontains $address.name -or $address.notes -and $fieldValue -icontains $address.notes -or $address.name -and $fieldValue -icontains $a.name -or $address.notes -and $fieldValue -icontains $a.name -or $address.description -and ( $fieldValue -icontains $address.description) ){
+                        $addressesMentioned += $address
+                    }
+                }                
+                $mentionedWebsites += $companywebsites | Where-Object { $fieldValue -icontains $normalizedAssetName -or $(_Normalize-AssetName $_.name) -ieq $normalizedAssetName -or $fieldValue -icontains $_.name -or $_.notes -icontains $normalizedAssetName -or $_.notes -icontains $a.name }
+                $mentionedArticles += $companyArticles | Where-Object { $_.content -and $_.content.Contains($normalizedAssetName) -or $_.content -icontains $a.name -or $normalizedAssetName -ieq (_Normalize-AssetName $_.name) }
+                $mentionedAssets += _Get-AssetsMentionedInTexts -Assets $companyAssets -SourceAsset $a -Texts @($fieldValue)
+            }       
+            $a.fields | Where-Object {$_.field_type -eq "Text"  -or $_.field_type -ieq "Link"  -or $_.field_type -ieq "ConfidentialText"  -or $_.field_type -ieq "Phone"  -or $_.field_type -ieq "Copyable Text"} | ForEach-Object {
+                $fieldValue = $_.value
+                foreach ($companyProcess in $companyProcesses){
+                    if (
+                        ($companyProcess.name -and $fieldValue -icontains $companyProcess.name -or $companyProcess.procedure_tasks_attributes.name -and $fieldValue -icontains $companyProcess.procedure_tasks_attributes.name) `
+                        -or ($companyProcess.name -and $companyProcess.name -icontains $fieldValue -or $companyProcess.procedure_tasks_attributes.name -and $companyProcess.procedure_tasks_attributes.name -icontains $fieldValue)){
+                        $mentionedProcedures += $companyProcess
+                    }
+                }
+                foreach ($password in $companypasswords){ 
+                    if (
+                        ($password.name -and $fieldValue -icontains $password.name) -or ($password.notes -and $fieldValue -icontains $password.notes) -or ($password.name -and $fieldValue -icontains $a.name) -or ($password.notes -and $fieldValue -icontains $a.name) `
+                        -or ($password.name -and $password.name -icontains $fieldValue) -or ($password.notes -and $password.notes -icontains $fieldValue)){
+                        $mentionedPasswords += $password
+                    } elseif ($null -ne $password.password_folder_id){
+                        $passwordFolder = $companypasswordfolders | Where-Object { $_.id -eq $password.password_folder_id } | Select-Object -First 1
+                        if (
+                            ($passwordFolder.name -and $fieldValue -and $fieldValue -icontains $passwordFolder.name) -or ($passwordFolder.name -and $fieldValue -icontains $a.name) `
+                            -or ($passwordFolder.name -and $passwordFolder.name -icontains $fieldValue)){
+                            $mentionedPasswords += $password
+                        }
+                    }
+                }
+                foreach ($network in $companyNetworks){
+                    if (($network.name -and $fieldValue -icontains $network.name -or $network.notes -and $fieldValue -icontains $network.notes -or $network.name -and $fieldValue -icontains $a.name -or $network.notes -and $fieldValue -icontains $a.name -or $network.description -and ( $fieldValue -icontains $network.description)) -or `
+                        ($network.name -and $network.name -icontains $fieldValue) -or ($network.notes -and $network.notes -icontains $fieldValue) -or ($network.description -and $network.description -icontains $fieldValue)){
+                        $networksMentioned += $network
+                    }
+                }
+                foreach ($address in $companyaddresses){
+                    if (($address.name -and $fieldValue -icontains $address.name -or $address.notes -and $fieldValue -icontains $address.notes -or $address.name -and $fieldValue -icontains $a.name -or $address.notes -and $fieldValue -icontains $a.name -or $address.description -and ( $fieldValue -icontains $address.description) ) -or `
+                        ($address.name -and $address.name -icontains $fieldValue) -or ($address.notes -and $address.notes -icontains $fieldValue) -or ($address.description -and $address.description -icontains $fieldValue)){
+                        $addressesMentioned += $address
+                    }
+                }
+
+                $mentionedArticles += $companyArticles | Where-Object { $($fieldValue) -ieq $_.name -or $_.content -and $_.content.Contains($fieldValue) }
+                $mentionedWebsites += $companywebsites | Where-Object { $($fieldValue) -ieq $_.name -or $(_Normalize-WebsiteURL $_.name) -ieq $fieldValue -or $_.notes -icontains $fieldValue -or $_.notes -icontains $a.name }
+                $mentionedAssets += _Get-AssetsMentionedInTexts -Assets $companyAssets -SourceAsset $a -Texts @($fieldValue)
+            }
+    
+            # "siblings": other assets with same normalized name but different id
+            $siblings = @($companyAssetsByName[$normalizedAssetName] | Where-Object { $_.id -ne $a.id })
+            $siblings | ForEach-Object {
+                Write-Host "Sibling Asset $($a.name)@($($a.asset_layout_id)) -> $($_.name)@($($_.asset_layout_id))"
+                _New-TrackedRelation -CompanyName $c.name -FromType "Asset" -FromId $a.id -FromName $a.name -ToType "Asset" -ToId $_.id -ToName $_.name -RelationLabel "asset" -SeenRelations $companySeenRelations -DryRun:$dryRun
+            }
+            $mentionedWebsites | ForEach-Object {
+                _New-TrackedRelation -CompanyName $c.name -FromType "Asset" -FromId $a.id -FromName $a.name -ToType "Website" -ToId $_.id -ToName $_.name -RelationLabel "website" -SeenRelations $companySeenRelations -DryRun:$dryRun
+            }
+            $mentionedArticles | ForEach-Object {
+                _New-TrackedRelation -CompanyName $c.name -FromType "Asset" -FromId $a.id -FromName $a.name -ToType "Article" -ToId $_.id -ToName $_.name -RelationLabel "article" -SeenRelations $companySeenRelations -DryRun:$dryRun
+            }
+            $mentionedAssets | ForEach-Object {
+                _New-TrackedRelation -CompanyName $c.name -FromType "Asset" -FromId $a.id -FromName $a.name -ToType "Asset" -ToId $_.id -ToName $_.name -RelationLabel "asset" -SeenRelations $companySeenRelations -DryRun:$dryRun
+            }
+            $mentionedPasswords | ForEach-Object {
+                _New-TrackedRelation -CompanyName $c.name -FromType "Asset" -FromId $a.id -FromName $a.name -ToType "AssetPassword" -ToId $_.id -ToName $_.name -RelationLabel "password" -SeenRelations $companySeenRelations -DryRun:$dryRun
+            }
+            $mentionedProcedures | ForEach-Object {
+                _New-TrackedRelation -CompanyName $c.name -FromType "Asset" -FromId $a.id -FromName $a.name -ToType "Procedure" -ToId $_.id -ToName $_.name -RelationLabel "procedure" -SeenRelations $companySeenRelations -DryRun:$dryRun
+            }
+            $addressesMentioned | ForEach-Object {
+                _New-TrackedRelation -CompanyName $c.name -FromType "Asset" -FromId $a.id -FromName $a.name -ToType "IPAddress" -ToId $_.id -ToName $_.name -RelationLabel "address" -SeenRelations $companySeenRelations -DryRun:$dryRun
+            }
+            $networksMentioned | ForEach-Object {
+                _New-TrackedRelation -CompanyName $c.name -FromType "Asset" -FromId $a.id -FromName $a.name -ToType "Network" -ToId $_.id -ToName $_.name -RelationLabel "network" -SeenRelations $companySeenRelations -DryRun:$dryRun
+            }
+        }
+
+        $nonAssetSources = @()
+        $nonAssetSources += $companywebsites | ForEach-Object { [pscustomobject]@{ type = 'Website'; item = $_ } }
+        $nonAssetSources += $companyArticles | ForEach-Object { [pscustomobject]@{ type = 'Article'; item = $_ } }
+        $nonAssetSources += $companyProcesses | ForEach-Object { [pscustomobject]@{ type = 'Procedure'; item = $_ } }
+        $nonAssetSources += $companypasswords | ForEach-Object { [pscustomobject]@{ type = 'AssetPassword'; item = $_ } }
+        $nonAssetSources += $companyNetworks | ForEach-Object { [pscustomobject]@{ type = 'Network'; item = $_ } }
+        $nonAssetSources += $companyAddresses | ForEach-Object { [pscustomobject]@{ type = 'IPAddress'; item = $_ } }
+
+        $relationTargets = @()
+        $relationTargets += $companyAssets | ForEach-Object { [pscustomobject]@{ type = 'Asset'; label = 'asset'; item = $_ } }
+        $relationTargets += $companywebsites | ForEach-Object { [pscustomobject]@{ type = 'Website'; label = 'website'; item = $_ } }
+        $relationTargets += $companyArticles | ForEach-Object { [pscustomobject]@{ type = 'Article'; label = 'article'; item = $_ } }
+        $relationTargets += $companyProcesses | ForEach-Object { [pscustomobject]@{ type = 'Procedure'; label = 'procedure'; item = $_ } }
+        $relationTargets += $companypasswords | ForEach-Object { [pscustomobject]@{ type = 'AssetPassword'; label = 'password'; item = $_ } }
+        $relationTargets += $companyNetworks | ForEach-Object { [pscustomobject]@{ type = 'Network'; label = 'network'; item = $_ } }
+        $relationTargets += $companyAddresses | ForEach-Object { [pscustomobject]@{ type = 'IPAddress'; label = 'address'; item = $_ } }
+
+        foreach ($source in $nonAssetSources) {
+            $sourceTexts = @(_Get-NonAssetSearchTexts -Type $source.type -Item $source.item -PasswordFolders $companypasswordfolders)
+            if (-not $sourceTexts -or $sourceTexts.Count -eq 0) { continue }
+
+            $sourceName = $source.item.name
+            if ([string]::IsNullOrWhiteSpace($sourceName)) {
+                $sourceName = "$($source.type) $($source.item.id)"
+            }
+
+            Write-Host "Processing $($source.type.ToLowerInvariant()) '$sourceName' ($($source.item.id)) for relation mentions"
+
+            foreach ($target in $relationTargets) {
+                if ($source.type -eq $target.type -and [string]$source.item.id -eq [string]$target.item.id) { continue }
+
+                $targetIdentifiers = @(_Get-RelationTargetIdentifiers -Type $target.type -Item $target.item -PasswordFolders $companypasswordfolders)
+                if (-not $targetIdentifiers -or $targetIdentifiers.Count -eq 0) { continue }
+
+                $matched = $false
+                foreach ($targetIdentifier in $targetIdentifiers) {
+                    if (_Test-TextsContainNeedle -Texts $sourceTexts -Needle $targetIdentifier) {
+                        $matched = $true
+                        break
+                    }
+                }
+
+                if (-not $matched) { continue }
+
+                _New-TrackedRelation -CompanyName $c.name -FromType $source.type -FromId $source.item.id -FromName $sourceName -ToType $target.type -ToId $target.item.id -ToName $target.item.name -RelationLabel $target.label -SeenRelations $companySeenRelations -DryRun:$dryRun
+            }
+        }
+    }
+    if (get-command -name Set-HapiErrorsDirectory -ErrorAction SilentlyContinue){try {Set-HapiErrorsDirectory -skipRetry $false} catch {}}
+
+}
 function Get-HuduCompanyFromName {
     # use index first. Then existing list. Then API call.
     param (

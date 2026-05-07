@@ -30,3 +30,4 @@ rbtmp
 *env*
 !*.example
 logs/PPdata.json
+*.log
