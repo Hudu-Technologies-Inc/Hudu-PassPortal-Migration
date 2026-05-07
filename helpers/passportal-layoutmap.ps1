@@ -155,12 +155,12 @@ function Get-PassportalFieldMapForType {
             @{ label="Location"; field_type="Text" }
         )
         remote_access = @(
-            @{ label="Site"; field_type="Text" },
-            @{ label="Client VPN URL"; field_type="Text" },
-            @{ label="Client VPN Installer"; field_type="Text" },
-            @{ label="Remote Desktop"; field_type="Text" },
-            @{ label="Webmail"; field_type="Text" },
-            @{ label="Password"; field_type="Password" }
+            @{ label="Remote Access Technology"; field_type="Text" },
+            @{ label="Remote Access URL"; field_type="Text" },
+            @{ label="Remote Access Workstation"; field_type="Text" },
+            @{ label="Authorized User(s)"; field_type="Text" },
+            @{ label="2FA Type"; field_type="Text" },
+            @{ label="2FA Details"; field_type="RichText" }
         )
         vendor = @(
             @{ label="Vendor Website"; field_type="Text" },
@@ -215,10 +215,26 @@ function Get-PassportalFieldMapForType {
             @{ label="SANs"; field_type="RichText" }
         )
     }
-    $fields = $fieldMap[$Type.ToLower()] ?? @()
-    $fields+=@{label="PassPortalID"; field_type="Text"}
+    $rawFields = @($fieldMap[$Type.ToLower()] ?? @())
+    $rawFields += @{label="PassPortalID"; field_type="Text"}
+
+    $fields = [System.Collections.Generic.List[object]]::new()
+    $seenLabels = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($field in $rawFields) {
+        if (-not $field.label) { continue }
+        $lookupLabel = if (Get-Command ConvertTo-PassportalLookupKey -ErrorAction SilentlyContinue) {
+            ConvertTo-PassportalLookupKey $field.label
+        } else {
+            "$($field.label)".Trim().ToLowerInvariant()
+        }
+        if ([string]::IsNullOrWhiteSpace($lookupLabel)) { continue }
+        if ($seenLabels.Add($lookupLabel)) {
+            [void]$fields.Add($field)
+        }
+    }
+
     for ($i = 0; $i -lt $fields.Count; $i++) {
         $fields[$i].position = $i + 1
     }
-    return $fields
+    return $fields.ToArray()
 }

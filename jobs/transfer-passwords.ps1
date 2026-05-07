@@ -1,19 +1,23 @@
 $passportalData.csvData = $passportalData.csvData ?? $(Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"}))
 if ($null -eq $passportalData.csvData) {
-    Set-Prontandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
+    Set-Printandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
 } else { write-host "CSV data loaded!"}
 $PasswordIDX=0
 $passwordsToProcess = @($passportalData.csvData.passwords) + @($passportalData.csvData.vault)
 
+$huducompanies = Get-HuduCompanies
 $internalCompany = select-objectfromlist -objects $(get-huducompanies) -message "Please select your internal company in Hudu for passwords that may not be directly associated with a company in Passportal"; $internalCompany = $internalCompany.company ?? $internalCompany;
-
+$AssociatePassowrdsAssets = $AssociatePassowrdsAssets ?? $false
 foreach ($newCredential in $passwordsToProcess) {
     $credentialName = $(if (-not [string]::IsNullOrEmpty($newCredential.Description)) {$newCredential.Description} else {"$($newCredential.Credential) - $($newCredential.Username)"})
     $clientName = $newCredential.'Client Name' ?? "Vault"
     Write-Host "Starting $($credentialName) for $($clientName)"
     
     # Match Company
-    $MatchedCompany = $null; $MatchedCompany = $($MatchedCompanies | Where-Object {@($_.PPcompany.name, $_.PPcompany.decodedName) -contains $clientName} | Select-Object -First 1).HuduCompany
+    $MatchedCompany = $null; 
+    
+    $matchedCompany = $(Get-HuduCompanyFromName -CompanyName $PPcompany.decodedName -HuduCompanies $huducompanies -deepCompanySearch $true)
+
     $MatchedCompany = $MatchedCompany ?? $internalCompany
     $MatchedCompany = $MatchedCompany.company ?? $MatchedCompany
 

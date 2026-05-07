@@ -1,54 +1,54 @@
-# Poppler Setup
-$includeHiddenText=$true
-$includeComplexLayouts=$true
-$PassportalDocsConvert = $PassportalDocsConvert ?? $false
-$runbooksCompanyName = $runbooksCompanyName ?? $null
-if ([string]::IsNullOrEmpty($runbooksCompanyName)) { $internalCompanyForRunbooks = $null } else { $internalCompanyForRunbooks = get-huducompanies -name $runbooksCompanyName | select-object -first 1; $internalCompanyForRunbooks = $internalCompanyForRunbooks.company ?? $internalCompanyForRunbooks; }
-# for testing
-# $SingleDocumentTest = $false
-$RBStartTime = Get-Date
+# # Poppler Setup
+# $includeHiddenText=$true
+# $includeComplexLayouts=$true
+# $PassportalDocsConvert = $PassportalDocsConvert ?? $false
+# $runbooksCompanyName = $runbooksCompanyName ?? $null
+# if ([string]::IsNullOrEmpty($runbooksCompanyName)) { $internalCompanyForRunbooks = $null } else { $internalCompanyForRunbooks = get-huducompanies -name $runbooksCompanyName | select-object -first 1; $internalCompanyForRunbooks = $internalCompanyForRunbooks.company ?? $internalCompanyForRunbooks; }
+# # for testing
+# # $SingleDocumentTest = $false
+# $RBStartTime = Get-Date
 
-if ($null -ne $internalCompanyForRunbooks){
-  read-host "using internal company $($internalCompanyForRunbooks.id) $($internalCompanyForRunbooks.name) for all runbooks"
-}
+# if ($null -ne $internalCompanyForRunbooks){
+#   read-host "using internal company $($internalCompanyForRunbooks.id) $($internalCompanyForRunbooks.name) for all runbooks"
+# }
 
-$workdir = $workdir ?? $(split-path $(resolve-path .))
-foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
-    Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
-    . $file.FullName
-}
-if (-not (Get-Command -Name get-hudubaseurl -ErrorAction SilentlyContinue)) { Get-PSVersionCompatible; Get-HuduModule; Set-HuduInstance; Get-HuduVersionCompatible; }
+# $workdir = $workdir ?? $(split-path $(resolve-path .))
+# foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
+#     Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
+#     . $file.FullName
+# }
+# if (-not (Get-Command -Name get-hudubaseurl -ErrorAction SilentlyContinue)) { Get-PSVersionCompatible; Get-HuduModule; Set-HuduInstance; Get-HuduVersionCompatible; }
 
-if (-not $PassportalDocsConvert -or -not $true -eq $PassportalDocsConvert){
-    Write-host "Not set to convert passportal"; Exit 0;
-}
+# if (-not $PassportalDocsConvert -or -not $true -eq $PassportalDocsConvert){
+#     Write-host "Not set to convert passportal"; Exit 0;
+# }
 
-# validate runbooks path
-while ($true) {
-    if (-not $PassportalRunbooksPath -or $([string]::IsNullOrEmpty($PassportalRunbooksPath))){
-      $PassportalRunbooksPath = $(read-host "Please enter absolute path to your passportal runbooks")
-    } elseif (-not $(Test-Path $PassportalRunbooksPath)){
-      Write-Host "Runbooks path (currently $PassportalRunbooksPath) doesnt appear to exist."
-    } else {
-      break
-    }
-    $PassportalRunbooksPath = read-host "Please enter valid runbooks Export path (containing PDF files)"
-}
-if (test-path $PassportalRunbooksPath){
-    Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is valid"
-} else {
-    Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is not valid"
-    exit 1
-}
+# # validate runbooks path
+# while ($true) {
+#     if (-not $PassportalRunbooksPath -or $([string]::IsNullOrEmpty($PassportalRunbooksPath))){
+#       $PassportalRunbooksPath = $(read-host "Please enter absolute path to your passportal runbooks")
+#     } elseif (-not $(Test-Path $PassportalRunbooksPath)){
+#       Write-Host "Runbooks path (currently $PassportalRunbooksPath) doesnt appear to exist."
+#     } else {
+#       break
+#     }
+#     $PassportalRunbooksPath = read-host "Please enter valid runbooks Export path (containing PDF files)"
+# }
+# if (test-path $PassportalRunbooksPath){
+#     Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is valid"
+# } else {
+#     Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is not valid"
+#     exit 1
+# }
 
-# enumerate source runbooks
-$ConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRunbooksPath).path -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue
-if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
-    Write-host "No eligible PDFS for convert."
-    exit 1
-} else {
-    Write-host "$($ConvertDocsList.count) eligible PDFS for convert."
-}
+# # enumerate source runbooks
+# $ConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRunbooksPath).path -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue
+# if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
+#     Write-host "No eligible PDFS for convert."
+#     exit 1
+# } else {
+#     Write-host "$($ConvertDocsList.count) eligible PDFS for convert."
+# }
 
 # find pdftohtml
 $PDFToHTML = $PDFToHTML ?? $(get-childitem -path "$workdir/.." -file -filter "pdftohtml.exe" -Recurse | Select-Object -First 1).FullName

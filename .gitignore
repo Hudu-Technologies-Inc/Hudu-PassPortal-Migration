@@ -29,3 +29,7 @@ rbtmp
 *environ*
 *env*
 !*.example
+logs/PPdata.json
+*.log
+*.txt
+*.json
