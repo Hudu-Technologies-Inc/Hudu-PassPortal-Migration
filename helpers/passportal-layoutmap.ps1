@@ -29,65 +29,105 @@ function Get-PassportalFieldMapForType {
 
     $fieldMap = @{
         asset = @(
-            @{ label="Asset Name"; field_type="Text" },
+            @{ label="Name"; field_type="Text" },
+            @{ label="Manufacturer"; field_type="Text" },
             @{ label="Assigned User"; field_type="Text" },
             @{ label="Purchased By"; field_type="Text" },
             @{ label="Model"; field_type="Text" },
             @{ label="Serial Number"; field_type="Text" },
-            @{ label="Purchase Date"; field_type="Date" },
+            @{ label="Purchase Date (YYYY-MM-DD)"; field_type="Date" },
             @{ label="Type"; field_type="Text" },
             @{ label="Asset Tag"; field_type="Text" },
             @{ label="Hostname"; field_type="Text" },
             @{ label="Status"; field_type="Text" },
             @{ label="Platform"; field_type="Text" },
             @{ label="Primary IP"; field_type="Text" },
-            @{ label="Hostname"; field_type="Text" },
+            @{ label="Default Gateway"; field_type="Text" },
+            @{ label="MAC Address"; field_type="Text" },
+            @{ label="Location"; field_type="Text" },
             @{ label="Operating System"; field_type="Text" },
             @{ label="Operating System Notes"; field_type="RichText" },
+            @{ label="Portal URL"; field_type="Text" },
+            @{ label="Remote Launch URL"; field_type="Text" },
+            @{ label="Integration Type"; field_type="Text" },
+            @{ label="Last Logged in User"; field_type="Text" },
+            @{ label="Install Date (YYYY-MM-DD)"; field_type="Date" },
+            @{ label="Installed By"; field_type="Text" },
+            @{ label="Expiration Date (YYYY-MM-DD)"; field_type="Date" },
             @{ label="Notes"; field_type="RichText" }
         )
         active_directory = @(
             @{ label="AD Full Name"; field_type="Text" },
             @{ label="AD Short Name"; field_type="Text" },
             @{ label="AD Level"; field_type="Text" },
-            @{ label="Domain Controller(S)"; field_type="Text" },
-            @{ label="DNS Server(S)"; field_type="Text" },
-            @{ label="DHCP Server(S)"; field_type="Text" },
+            @{ label="AD Servers"; field_type="Text" },
+            @{ label="DNS Servers"; field_type="Text" },
+            @{ label="DHCP Servers"; field_type="Text" },
+            @{ label="Domain Credentials"; field_type="Text" },
             @{ label="Directory Services Restore Mode Password"; field_type="Password" },
-            @{ label="Domain Controller IP"; field_type="Text" }
+            @{ label="Domain Naming Master"; field_type="Text" },
+            @{ label="Infrastructure Master"; field_type="Text" },
+            @{ label="PDC Emulator"; field_type="Text" },
+            @{ label="RID Master"; field_type="Text" },
+            @{ label="Schema Master"; field_type="Text" },
+            @{ label="GPO(s)"; field_type="RichText" },
+            @{ label="Notes"; field_type="RichText" }
         )
         application = @(
             @{ label="Application Name"; field_type="Text" },
-            @{ label="Title"; field_type="Text" },
-            @{ label="License Key"; field_type="Text" },
             @{ label="Category"; field_type="Text" },
             @{ label="Version"; field_type="Text" },
-            @{ label="Attachment Paths"; field_type="Text" },
-            @{ label="Application Owner"; field_type="Text" },
-            @{ label="NOTES"; field_type="RichText" }
+            @{ label="Vendor"; field_type="Text" },
+            @{ label="Importance"; field_type="Text" },
+            @{ label="Business Impact"; field_type="Text" },
+            @{ label="Customer Account Number"; field_type="Text" },
+            @{ label="Application Champion"; field_type="Text" },
+            @{ label="Application Servers"; field_type="Text" },
+            @{ label="Application Administrator Credentials"; field_type="Text" },
+            @{ label="Application Service Account"; field_type="Text" },
+            @{ label="Licensing Information"; field_type="RichText" },
+            @{ label="Workstation Install Guide"; field_type="RichText" },
+            @{ label="Knowlege Base Articles"; field_type="RichText" },
+            @{ label="Additional Notes"; field_type="RichText" }
         )
         backup = @(
             @{ label="Backup Technology"; field_type="Text" },
-            @{ label="Backup Description"; field_type="Text" },
-            @{ label="Data Recovery Approver"; field_type="Text" },
-            @{ label="Local Backup Server(S)"; field_type="Text" },
             @{ label="Backup Type"; field_type="Text" },
-            @{ label="Backup Description"; field_type="Text" },
-            @{ label="Backup Interval"; field_type="Text" },
+            @{ label="Backup Job Description"; field_type="Text" },
+            @{ label="Protected Servers"; field_type="Text" },
+            @{ label="Protected Files"; field_type="RichText" },
+            @{ label="Protected Applications"; field_type="RichText" },
+            @{ label="Backup Frequency"; field_type="Text" },
             @{ label="Backup Window"; field_type="Text" },
-            @{ label="Retention Policy"; field_type="Text" },
-            @{ label="Notes"; field_type="RichText" },
-            @{ label="Last Successful Backup"; field_type="Date" },
-            @{ label="Next Test Restore Date"; field_type="Date" }
+            @{ label="Backup Account Credentials"; field_type="Text" },
+            @{ label="Backup Job Encryption Password"; field_type="Text" },
+            @{ label="Backup Service Account"; field_type="Text" },
+            @{ label="Data Recovery Approver"; field_type="Text" },
+            @{ label="Next Restore Verification Date"; field_type="Date" },
+            @{ label="Local Backup Type"; field_type="Text" },
+            @{ label="Local Backup Server"; field_type="Text" },
+            @{ label="Local Backup Location"; field_type="Text" },
+            @{ label="Local Retention"; field_type="Text" },
+            @{ label="Offsite Replication"; field_type="Text" },
+            @{ label="Offsite Location"; field_type="Text" },
+            @{ label="Offsite Retention"; field_type="Text" },
+            @{ label="Notes"; field_type="RichText" }
         )
         email = @(
-            @{ label="Email Address"; field_type="Text" },
-            @{ label="Email Type"; field_type="Password" },
+            @{ label="Email Type"; field_type="Text" },
             @{ label="Domain(s)"; field_type="Text" },
+            @{ label="Location"; field_type="Text" },
             @{ label="Email Servers"; field_type="Text" },
-            @{ label="WebMail URL"; field_type="Text" },
+            @{ label="Webmail URL"; field_type="Text" },
+            @{ label="Client Admin Portal URL"; field_type="Text" },
+            @{ label="Client Admin Credentials"; field_type="Text" },
             @{ label="Inbound Delivery"; field_type="Text" },
-            @{ label="Notes"; field_type="RichText" }
+            @{ label="Outbound Delivery"; field_type="Text" },
+            @{ label="Email Archiving"; field_type="Text" },
+            @{ label="Email Backups"; field_type="Text" },
+            @{ label="Outbound Email Encryption"; field_type="Text" },
+            @{ label="Knowledge Base Articles"; field_type="RichText" },
+            @{ label="Additional Notes"; field_type="RichText" }
         )
         folders = @(
             @{ label="Folder Name"; field_type="Text" },
@@ -99,74 +139,110 @@ function Get-PassportalFieldMapForType {
             @{ label="Share Description"; field_type="Text" },
             @{ label="File Servers"; field_type="Text" },
             @{ label="Share UNC Path"; field_type="Text" },
+            @{ label="Share Local Path"; field_type="Text" },
+            @{ label="Local Server Disk Path"; field_type="Text" },
             @{ label="Mapped Drive"; field_type="Text" },
-            @{ label="File Share Permissions"; field_type="Text" },
-            @{ label="User Accounts"; field_type="RichText" }
+            @{ label="Mapped By"; field_type="Text" },
+            @{ label="Security Group(s)"; field_type="Text" },
+            @{ label="Authorization Required"; field_type="Text" },
+            @{ label="Point of Contact for Authorization"; field_type="Text" },
+            @{ label="Cloud File Sharing Solution"; field_type="Text" },
+            @{ label="Cloud File Sharing Administator"; field_type="Text" },
+            @{ label="Cloud File Sharing Client Installer"; field_type="Text" },
+            @{ label="Cloud File Sharing Install Guide"; field_type="RichText" },
+            @{ label="GPO(s)"; field_type="RichText" },
+            @{ label="Notes"; field_type="RichText" }
         )
         contact = @(
             @{ label="Contact Type"; field_type="Text" },
             @{ label="Primary Contact"; field_type="Text" },
             @{ label="Job Title"; field_type="Text" },
             @{ label="First Name"; field_type="Text" },
+            @{ label="Middle Name"; field_type="Text" },
             @{ label="Last Name"; field_type="Text" },
+            @{ label="Location"; field_type="Text" },
             @{ label="Phone"; field_type="Phone" },
-            @{ label="Notes"; field_type="RichText" },
-            @{ label="Email"; field_type="Text" }
+            @{ label="Mobile Phone"; field_type="Phone" },
+            @{ label="Extension"; field_type="Text" },
+            @{ label="Fax"; field_type="Text" },
+            @{ label="Email Address"; field_type="Text" },
+            @{ label="Notes"; field_type="RichText" }
         )
         location = @(
             @{ label="Name"; field_type="Text" },
+            @{ label="Address"; field_type="Text" },
             @{ label="Address 1"; field_type="Text" },
             @{ label="Address 2"; field_type="Text" },
+            @{ label="Suite / Unit"; field_type="Text" },
             @{ label="City"; field_type="Text" },
+            @{ label="State / Province"; field_type="Text" },
+            @{ label="ZIP / Postal Code"; field_type="Text" },
             @{ label="Country"; field_type="Text" },
-            @{ label="State"; field_type="RichText" },
             @{ label="Fax"; field_type="Text" },
-            @{ label="Phone"; field_type="Text" }
+            @{ label="Phone"; field_type="Phone" },
+            @{ label="Emergency Contact"; field_type="Text" },
+            @{ label="Hours of Operation"; field_type="RichText" },
+            @{ label="Floor Plan"; field_type="RichText" },
+            @{ label="Notes"; field_type="RichText" }
         )
         internet = @(
             @{ label="Internet Service Provider"; field_type="Text" },
             @{ label="Link Type"; field_type="Text" },
-            @{ label="Account Number"; field_type="Text" },
+            @{ label="Customer Account Number"; field_type="Text" },
+            @{ label="Location"; field_type="Text" },
             @{ label="Download Speed (Mbps)"; field_type="Text" },
-            @{ label="Upload Speed (Mbps)"; field_type="Text" },
-            @{ label="SMTP Smarthost"; field_type="Text" },
-            @{ label="Subnet Mask"; field_type="Text" },            
-            @{ label="Gateway(S)"; field_type="Text" },
+            @{ label="Upload Speed (Mpbs)"; field_type="Text" },
+            @{ label="Primary Public IP Address"; field_type="Text" },
+            @{ label="Public Gateway"; field_type="Text" },
+            @{ label="Public Subnet Mask"; field_type="Text" },
             @{ label="DNS Servers"; field_type="Text" },
-            @{ label="Gateway(S)"; field_type="Text" },
-            @{ label="Static IPs"; field_type="RichText" }
+            @{ label="Router/Firewall"; field_type="Text" },
+            @{ label="SLA"; field_type="Text" },
+            @{ label="Login/PIN"; field_type="Password" },
+            @{ label="Authorized User(s)"; field_type="Text" },
+            @{ label="Copy of Invoice"; field_type="Text" },
+            @{ label="Additional Notes (IP Addresses)"; field_type="RichText" }
         )
         lan = @(
-            @{ label="Device Name"; field_type="Text" },
-            @{ label="IP Address"; field_type="Text" },
-            @{ label="MAC Address"; field_type="Text" },
-            @{ label="Port Number"; field_type="Text" },
-            @{ label="Subnet Mask"; field_type="Text" },            
-            @{ label="Gateway(S)"; field_type="Text" },            
-            @{ label="DNS Servers"; field_type="Text" },            
-            @{ label="Gateway(S)"; field_type="Text" }         
+            @{ label="Location"; field_type="Text" },
+            @{ label="Subnet"; field_type="Text" },
+            @{ label="VLAN"; field_type="Text" },
+            @{ label="VLAN ID"; field_type="Text" },
+            @{ label="Router/Firewall"; field_type="Text" },
+            @{ label="DHCP Server"; field_type="Text" },
+            @{ label="DHCP Scope"; field_type="Text" },
+            @{ label="DNS Server(s)"; field_type="Text" },
+            @{ label="DNS Settings"; field_type="RichText" },
+            @{ label="Network Switches"; field_type="RichText" },
+            @{ label="Wireless Devices"; field_type="RichText" },
+            @{ label="Network Diagram"; field_type="RichText" }
         )
         printing = @(
             @{ label="Connection Type"; field_type="Text" },
             @{ label="Print Drivers Path"; field_type="Text" },
             @{ label="Print Server(S)"; field_type="Text" },
+            @{ label="Printers"; field_type="RichText" },
+            @{ label="Site"; field_type="Text" },
             @{ label="Support Vendor"; field_type="Text" },
-            @{ label="Notes"; field_type="RichText" },
-            @{ label="Location"; field_type="Text" }
+            @{ label="Deployment"; field_type="Text" },
+            @{ label="Install Guide"; field_type="RichText" },
         )
         remote_access = @(
-            @{ label="Site"; field_type="Text" },
-            @{ label="Client VPN URL"; field_type="Text" },
-            @{ label="Client VPN Installer"; field_type="Text" },
-            @{ label="Remote Desktop"; field_type="Text" },
-            @{ label="Webmail"; field_type="Text" },
-            @{ label="Password"; field_type="Password" }
+            @{ label="Remote Access Technology"; field_type="Text" },
+            @{ label="Remote Access URL"; field_type="Text" },
+            @{ label="Remote Access Server"; field_type="Text" },
+            @{ label="Client Remote Access Software"; field_type="Text" },
+            @{ label="Authorized User(s)"; field_type="Text" },
+            @{ label="2FA Type"; field_type="Text" },
+            @{ label="2FA Details"; field_type="RichText" },
+            @{ label="Notes"; field_type="RichText" }
         )
         vendor = @(
+            @{ label="Vendor Name"; field_type="Text" },
             @{ label="Vendor Website"; field_type="Text" },
             @{ label="Vendor Support URL"; field_type="Text" },
             @{ label="Support Phone Number"; field_type="Text" },
-            @{ label="Support Email"; field_type="Text" }
+            @{ label="Support Email Address"; field_type="Text" }
         )
         virtualization = @(
             @{ label="Hypervisor"; field_type="Text" },
@@ -215,10 +291,26 @@ function Get-PassportalFieldMapForType {
             @{ label="SANs"; field_type="RichText" }
         )
     }
-    $fields = $fieldMap[$Type.ToLower()] ?? @()
-    $fields+=@{label="PassPortalID"; field_type="Text"}
+    $rawFields = @($fieldMap[$Type.ToLower()] ?? @())
+    $rawFields += @{label="PassPortalID"; field_type="Text"}
+
+    $fields = [System.Collections.Generic.List[object]]::new()
+    $seenLabels = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($field in $rawFields) {
+        if (-not $field.label) { continue }
+        $lookupLabel = if (Get-Command ConvertTo-PassportalLookupKey -ErrorAction SilentlyContinue) {
+            ConvertTo-PassportalLookupKey $field.label
+        } else {
+            "$($field.label)".Trim().ToLowerInvariant()
+        }
+        if ([string]::IsNullOrWhiteSpace($lookupLabel)) { continue }
+        if ($seenLabels.Add($lookupLabel)) {
+            [void]$fields.Add($field)
+        }
+    }
+
     for ($i = 0; $i -lt $fields.Count; $i++) {
         $fields[$i].position = $i + 1
     }
-    return $fields
+    return $fields.ToArray()
 }

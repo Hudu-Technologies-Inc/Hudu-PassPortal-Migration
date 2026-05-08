@@ -83,33 +83,39 @@ Set-IncrementedState -newState "Obtain data from Hudu Instance- $(Get-HuduBaseUR
 Set-IncrementedState -newState "Transfer assets, companies, and layouts into hudu"
 . .\jobs\transfer-companies-assets-layouts.ps1
 
-Set-IncrementedState -newState "Set Layouts as active"
-foreach ($layout in Get-HuduAssetLayouts) {Set-PrintAndLog -message "setting $($(Set-HuduAssetLayout -id $layout.id -Active $true).asset_layout.name) as active" -Color DarkMagenta }
+# Set-IncrementedState -newState "Set Layouts as active"
+# foreach ($layout in Get-HuduAssetLayouts) {Set-PrintAndLog -message "setting $($(Set-HuduAssetLayout -id $layout.id -Active $true).asset_layout.name) as active" -Color DarkMagenta }
 
 
-### Transfer passwords if CSVs present
-##
-#
-Set-IncrementedState -newState "Import and match passwords from CSV data"
-. .\jobs\transfer-passwords.ps1
+# ### Transfer passwords if CSVs present
+# ##
+# #
+# Set-IncrementedState -newState "Import and match passwords from CSV data"
+# . .\jobs\transfer-passwords.ps1
 
-### Optional Runbooks PDF split/parse
-##
-#
-if ($true -eq $PassportalDocsConvert){
-    Set-IncrementedState -newState "Optional Runbooks PDF split and parse to articles"
-    . .\jobs\convert-runbooks-to-articles.ps1
-}
+# ### Optional Runbooks PDF split/parse
+# ##
+# #
+# if ($true -eq $PassportalDocsConvert){
+#     Set-IncrementedState -newState "Optional Runbooks PDF split and parse to articles"
+#     . .\jobs\convert-runbooks-to-articles.ps1
+# }
+
+# Set-IncrementedState -newState "Wrap-Up"
+# . .\jobs\wrap-up.ps1
+
+# Set-IncrementedState -newState "Calculate and Relay Results"
+# . .\jobs\relay-results.ps1
 
 
-Set-IncrementedState -newState "Complete"
+# Set-IncrementedState -newState "Complete"
 
-Set-IncrementedState -newState "Calculate and Relay Results"
-. .\jobs\relay-results.ps1
+# Set-IncrementedState -newState "Calculate and Relay Results"
+# . .\jobs\relay-results.ps1
 
-# Set-IncrementedState -newState "Import and match websites from SSL data"
-Set-IncrementedState -newState "Wrap-Up, and Unsetting $($sensitiveVars.count) sensitive vars"
-foreach ($var in $sensitiveVars) {
-    Set-PrintAndLog -message  "Unset Sensitive Var $var"
-    Unset-Vars -varname $var
-}
+# # Set-IncrementedState -newState "Import and match websites from SSL data"
+# Set-IncrementedState -newState "Wrap-Up, and Unsetting $($sensitiveVars.count) sensitive vars"
+# foreach ($var in $sensitiveVars) {
+#     Set-PrintAndLog -message  "Unset Sensitive Var $var"
+#     Unset-Vars -varname $var
+# }
