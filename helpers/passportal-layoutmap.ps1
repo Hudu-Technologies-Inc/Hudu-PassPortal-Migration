@@ -225,15 +225,11 @@ function Get-PassportalFieldMapForType {
             @{ label="Site"; field_type="Text" },
             @{ label="Support Vendor"; field_type="Text" },
             @{ label="Deployment"; field_type="Text" },
-            @{ label="Group Policy (if applicable) "; field_type="Text" },
             @{ label="Install Guide"; field_type="RichText" },
-            @{ label="Knowledge Base Articles"; field_type="RichText" },
-            @{ label="Notes"; field_type="RichText" }
         )
         remote_access = @(
             @{ label="Remote Access Technology"; field_type="Text" },
             @{ label="Remote Access URL"; field_type="Text" },
-            @{ label="Remote Access Workstation"; field_type="Text" },
             @{ label="Remote Access Server"; field_type="Text" },
             @{ label="Client Remote Access Software"; field_type="Text" },
             @{ label="Authorized User(s)"; field_type="Text" },
