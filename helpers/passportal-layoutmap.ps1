@@ -225,7 +225,7 @@ function Get-PassportalFieldMapForType {
             @{ label="Site"; field_type="Text" },
             @{ label="Support Vendor"; field_type="Text" },
             @{ label="Deployment"; field_type="Text" },
-            @{ label="Install Guide"; field_type="RichText" },
+            @{ label="Install Guide"; field_type="RichText" }
         )
         remote_access = @(
             @{ label="Remote Access Technology"; field_type="Text" },
