@@ -411,3 +411,107 @@ function Get-PSVersionCompatible {
         Write-Host "PowerShell version $currentPSVersion is compatible." -ForegroundColor Green
     }
 }
+
+
+function Set-ReleaseArtifact {
+    Remove-Item -Path "$($(get-childitem -path "." -Recurse -Directory "artifacts" | Select-Object -first 1).fullname)\*.txt" -Force -ErrorAction SilentlyContinue
+    Get-GitCheckoutInfo | Out-File "$($(get-childitem -path "." -Recurse -Directory "artifacts" | Select-Object -first 1).fullname)\$($(Get-Date -Format o | ForEach-Object { $_ -replace ":", "." })).txt" -Encoding utf8
+}
+function Get-ReleaseArtifact {
+    $artifact = (Get-ChildItem -Path "." -Recurse -Directory "artifacts" | Select-Object -First 1 | Get-ChildItem -Filter "*.txt" | Select-Object -First 1)
+    if (-not $(test-path $artifact.FullName)) {
+        return $null
+    }
+    return "$(Get-Content -Path $artifact.FullName)"
+}
+
+function Get-GitCheckoutInfo {
+    [CmdletBinding()]
+    param(
+        [string]$Path = (Get-Location).Path
+    )
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        return ($(Get-ReleaseArtifact) ?? "No Git installation found, cannot discern checkout info")
+    }
+    Push-Location -LiteralPath $Path
+    try {
+        $insideRepo = git rev-parse --is-inside-work-tree 2>$null
+        if ($LASTEXITCODE -ne 0 -or $insideRepo -ne 'true') {
+            return "Not inside a Git repository"
+        }
+        $commit = git rev-parse HEAD 2>$null
+        $branch = git branch --show-current 2>$null
+        if ([string]::IsNullOrWhiteSpace($branch)) {
+            $branch = '(detached HEAD)'
+        }
+        $remoteUrl = git remote get-url origin 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            $remoteUrl = $null
+        }
+        return "using commit $commit from branch $branch of repo $remoteUrl"
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Set-MigrationRecord {
+    [CmdletBinding()]
+    param(
+        [string]$HuduBaseUrl = $(Get-HuduBaseURL),
+        [securestring]$HuduApiKey = $(Get-HuduApiKey),
+        [string]$CheckOutinfo = $(Get-GitCheckoutInfo),
+        [bool]$selfService = $([bool]::Parse(($env:selfservicemigration ?? "true"))),
+        [string]$product = "PassPortal"
+
+    )
+    $response = $null
+    $resolvedBaseUrl = $null
+    $resolvedApiKey = $null
+    $requestUri = $null
+
+    try {
+        if ([string]::IsNullOrWhiteSpace($HuduBaseUrl)) {
+            throw "Hudu base URL is not set."
+        }
+
+        if ($null -eq $HuduApiKey) {
+            throw "Hudu API key is not set."
+        }
+
+        $resolvedBaseUrl = $HuduBaseUrl.TrimEnd('/')
+        $resolvedApiKey = (New-Object PSCredential 'user', $HuduApiKey).GetNetworkCredential().Password
+
+        if ([string]::IsNullOrWhiteSpace($resolvedApiKey)) {
+            throw "Resolved Hudu API key is empty."
+        }
+        $requestBody = @{
+            product = $product
+            self_service = $selfService
+            version = $CheckOutinfo
+        }
+        $requestJson = $requestBody | ConvertTo-Json -Depth 5
+
+        $requestUri = "$resolvedBaseUrl/api/v1/migrations"
+        $response = Invoke-WebRequest `
+            -Method Post `
+            -Body $requestJson `
+            -Uri $requestUri `
+            -Headers @{ 'x-api-key' = $resolvedApiKey; 'Accept' = 'application/json' } `
+            -ContentType 'application/json; charset=utf-8' `
+            -SkipHttpErrorCheck `
+            -ErrorAction Stop
+
+        $statusCode = [int]$response.StatusCode
+        if ($statusCode -lt 200 -or $statusCode -ge 300) {
+            Write-Warning "Migration telemetry endpoint returned HTTP $statusCode at $requestUri. Response: $($response.Content)"
+        }
+
+     
+    } catch {
+       write-warning $_.exception.message
+       return $false
+    }
+
+    return $true
+}

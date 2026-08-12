@@ -33,3 +33,4 @@ logs/PPdata.json
 *.log
 *.txt
 *.json
+!artifacts/*.txt
