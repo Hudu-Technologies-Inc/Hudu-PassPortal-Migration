@@ -42,13 +42,13 @@
 # }
 
 # # enumerate source runbooks
-# $ConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRunbooksPath).path -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue
-# if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
-#     Write-host "No eligible PDFS for convert."
-#     exit 1
-# } else {
-#     Write-host "$($ConvertDocsList.count) eligible PDFS for convert."
-# }
+ $ConvertDocsList = Get-ChildItem -Path $(resolve-path -path $PassportalRunbooksPath).path -Filter "*.pdf" -File -Recurse -ErrorAction SilentlyContinue
+ if (-not $ConvertDocsList -or $ConvertDocsList.count -lt 1){
+     Write-host "No eligible PDFS for convert."
+     exit 1
+ } else {
+     Write-host "$($ConvertDocsList.count) eligible PDFS for convert."
+ }
 
 # find pdftohtml
 $PDFToHTML = $PDFToHTML ?? $(get-childitem -path "$workdir/.." -file -filter "pdftohtml.exe" -Recurse | Select-Object -First 1).FullName
@@ -65,6 +65,12 @@ foreach ($folder in @($tmpfolder)) {
 }
 
 $convertedDocs = @{}
+
+#check RBStartTime and set it if its not set already
+if ($null -eq $RBStartTime) {
+    $RBStartTime = Get-Date
+    Write-Host "RBStartTime was not set, setting it to $RBStartTime" -ForegroundColor Yellow
+}
 
 foreach ($a in $ConvertDocsList){
     $KeyName     = Get-SafeFileBase -Name $a.BaseName
