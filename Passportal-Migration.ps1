@@ -57,6 +57,7 @@ Set-PrintAndLog -message "using $($selectedLocation.name) / $BaseUri for PassPor
 Set-Content -Path $logFile -Value "Starting Passportal Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue
 Set-HuduModuleInitialized -HuduBaseURL $HuduBaseURL -HuduAPIKey $HuduAPIKey
+$currentVersionResult = [version]$((get-huduappinfo).version); $DisallowedVersions = @([version]("2.37.0"), [version]("2.44.3")); if ($DisallowedVersions -contains [version]($currentVersionResult)) {write-host "disallowed version $($currentVersionResult); Please upgrade or downgrade if possible first." -ForegroundColor Red; exit 1;} else {write-host "$($currentVersionResult) is allowed!" -ForegroundColor Green};
 try {$migrationRecord = Set-MigrationRecord} catch {}
 Set-PrintAndLog -message "Imported Hudu Module.." -Color DarkBlue
 Set-IncrementedState -newState "Check Source data and get Source Data Options"
