@@ -66,6 +66,25 @@ foreach ($folder in @($tmpfolder)) {
 
 $convertedDocs = @{}
 
+$RunbookPublicPhotoExtensions = @('.jpg', '.jpeg', '.png', '.gif')
+$RunbookAttachmentImageExtensions = @('.svg')
+
+function Test-RunbookPublicPhotoImage {
+  param([Parameter(Mandatory)][string]$Path)
+  return $RunbookPublicPhotoExtensions -icontains ([IO.Path]::GetExtension($Path))
+}
+
+function Test-RunbookAttachmentImage {
+  param([Parameter(Mandatory)][string]$Path)
+  return $RunbookAttachmentImageExtensions -icontains ([IO.Path]::GetExtension($Path))
+}
+
+function Get-HuduStoredFileName {
+  param($StoredFile)
+  if ($null -eq $StoredFile) { return $null }
+  return $StoredFile.file_name ?? $StoredFile.name
+}
+
 #check RBStartTime and set it if its not set already
 if ($null -eq $RBStartTime) {
     $RBStartTime = Get-Date
@@ -94,6 +113,7 @@ foreach ($a in $ConvertDocsList){
             SplitDocs = @()
             HuduCompany = $null
             HuduImages = @()
+            HuduAttachments = @()
             CompanyName = ""
         }
     } catch {
@@ -143,6 +163,7 @@ foreach ($key in $convertedDocs.Keys) {
 
   # stub each split article
   $doc['SplitDocs']   = @()
+  $articleUsed = $null
   foreach ($sd in $split) {
     $matchedDocument = $null
     $newDocument = $null
@@ -158,7 +179,7 @@ foreach ($key in $convertedDocs.Keys) {
     elseif ($matchedDocument){Write-Host "Matched exist article ($($matchedDocument.name)) $($matchedDocument.id)"}
     $articleUsed = $matchedDocument ?? $newDocument ?? $null; $articleUsed = $articleUsed.article ?? $articleUsed;
     if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
-    Write-Host "Article and Uploads are complete"
+    Write-Host "Article stub is ready"
     $doc['SplitDocs'] += [pscustomobject]@{
       Title   = $sd.Title
       Article = $sd.Html
@@ -166,33 +187,80 @@ foreach ($key in $convertedDocs.Keys) {
     }
   }
   $HuduImages = @()
-  $existingRelatedImages = Get-HuduUploads | Where-Object { $_.uploadable_type -ieq 'Article' }
+  $HuduAttachments = @()
+  if ($null -eq $articleUsed -or -not $articleUsed.id) {
+    Write-Warning "Skipping extracted image handling for $key because no article was matched or created."
+    $doc['HuduImages'] = $HuduImages
+    $doc['HuduAttachments'] = $HuduAttachments
+    continue
+  }
 
-  # process images once with last article for attribution
+  $existingRelatedImages = Get-HuduUploads | Where-Object { $_.uploadable_type -ieq 'Article' }
+  $existingPublicPhotos = Get-HuduPublicPhotos | Where-Object { $_.record_type -ieq 'Article' }
+
+  # Process extracted files once with the last article for attribution.
+  # JPG/JPEG/PNG/GIF become public photos for embeddable article URLs.
+  # SVGs remain article attachments and are not used as embedded image sources.
+  # Other extracted image formats keep the previous upload-backed behavior.
   foreach ($ImageFile in $doc.ExtractedImages) {
     $existingUpload = $null
+    $existingPublicPhoto = $null
     $uploaded = $null
+    $publicPhoto = $null
 
     $ImagefileName = ([IO.Path]::GetFileName($ImageFile)).Trim()
 
-    $existingUpload = $existingRelatedImages | Where-Object { $_.name -eq $ImagefileName } | Select-Object -First 1
+    if (Test-RunbookPublicPhotoImage -Path $ImageFile) {
+      $existingPublicPhoto = $existingPublicPhotos | Where-Object {
+        (Get-HuduStoredFileName $_) -eq $ImagefileName -and
+          ($null -eq $_.record_id -or [int]$_.record_id -eq [int]$articleUsed.Id)
+      } | Select-Object -First 1
+      $existingPublicPhoto = $existingPublicPhoto.public_photo ?? $existingPublicPhoto
+
+      if ($existingPublicPhoto) {
+        Write-Host "ExistingPublicPhoto Match $((Get-HuduStoredFileName $existingPublicPhoto))"
+      } else {
+        Write-Host "No existing public photo, uploading file @ $ImageFile"
+        $publicPhoto = New-HuduPublicPhoto -FilePath $ImageFile -RecordId $articleUsed.Id -RecordType 'Article'
+        $publicPhoto = $publicPhoto.public_photo ?? $publicPhoto
+      }
+
+      $usingImage = $existingPublicPhoto ?? $publicPhoto
+      $HuduImages += @{
+        OriginalFilename = $ImageFile
+        UsingImage       = $usingImage
+      }
+
+      continue
+    }
+
+    $existingUpload = $existingRelatedImages | Where-Object { (Get-HuduStoredFileName $_) -eq $ImagefileName } | Select-Object -First 1
     $existingUpload = $existingUpload.upload ?? $existingUpload
 
     if ($existingUpload) {
-      Write-Host "ExistingUpload Match $($existingUpload.name)"
+      Write-Host "ExistingUpload Match $((Get-HuduStoredFileName $existingUpload))"
     } else {
-      Write-Host "No existing upload, uploading file @ $ImageFile"
+      Write-Host "No existing upload, uploading attachment @ $ImageFile"
       $uploaded = New-HuduUpload -FilePath $ImageFile -Uploadable_Id $articleUsed.Id -Uploadable_Type 'Article'
       $uploaded = $uploaded.upload ?? $uploaded
     }
 
-    $usingImage = $existingUpload ?? $uploaded
-    $HuduImages += @{
-      OriginalFilename = $ImageFile
-      UsingImage       = $usingImage
+    $usingAttachment = $existingUpload ?? $uploaded
+
+    if (Test-RunbookAttachmentImage -Path $ImageFile) {
+      $HuduAttachments += @{
+        OriginalFilename = $ImageFile
+        UsingAttachment  = $usingAttachment
+      }
+    } else {
+      $HuduImages += @{
+        OriginalFilename = $ImageFile
+        UsingImage       = $usingAttachment
+      }
     }
   }
   $doc['HuduImages'] = $HuduImages ?? @()  
+  $doc['HuduAttachments'] = $HuduAttachments ?? @()
 }
 
 Write-Host "All Articles created or stubbed; time to rewrite image sources and anchors"
@@ -284,6 +352,32 @@ $ImageResolver = {
 }
 try { Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue } catch {}
 
+function Remove-DocVectorImageEmbeds {
+  param([string]$Html)
+  if ([string]::IsNullOrWhiteSpace($Html)) { return $Html }
+
+  $tagPattern = '(?is)<(?<tag>img|embed|source)\b(?<attrs>[^>]*)>'
+  return [regex]::Replace($Html, $tagPattern, {
+    param($match)
+    $attrs = $match.Groups['attrs'].Value
+
+    foreach ($attr in $Script:RxAttr.Matches($attrs)) {
+      $attrName = $attr.Groups['name'].Value.ToLowerInvariant()
+      if ($attrName -notin @('src', 'data', 'poster')) { continue }
+
+      $raw = ($attr.Groups['val'].Value -split '#')[0] -split '\?' | Select-Object -First 1
+      $decoded = [System.Web.HttpUtility]::UrlDecode($raw)
+      $leaf = Split-Path -Leaf ($decoded -replace '/', '\')
+
+      if ([IO.Path]::GetExtension($leaf) -ieq '.svg') {
+        return ''
+      }
+    }
+
+    return $match.Value
+  })
+}
+
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
 
@@ -295,7 +389,8 @@ $docArticleMap = New-DocArticleMap -SplitDocs ($doc.SplitDocs ?? @()) -HuduBaseU
     $sd  = $doc.SplitDocs[$i]
     $ctx = @{ ImageMap = $docImageMap; ArticleMap = $docArticleMap }
 
-    $r = Rewrite-DocLinks -Html $sd.Article -ImageResolver $ImageResolver -LinkResolver $LinkResolver -Context $ctx
+    $localHtml = Remove-DocVectorImageEmbeds -Html $sd.Article
+    $r = Rewrite-DocLinks -Html $localHtml -ImageResolver $ImageResolver -LinkResolver $LinkResolver -Context $ctx
 $r.Unresolved | Select-Object -First 5 | Format-Table -AutoSize
 
 "{0}: HuduImages={1}  SplitDocs={2}" -f $key, ($doc.HuduImages.Count), ($doc.SplitDocs.Count) | Write-Host
