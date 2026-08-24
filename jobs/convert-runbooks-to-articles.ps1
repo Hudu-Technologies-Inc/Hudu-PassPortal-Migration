@@ -84,9 +84,21 @@ function Get-RunbookDecodedName {
   param([string]$Name)
   if ([string]::IsNullOrWhiteSpace($Name)) { return $Name }
 
-  $decoded = [System.Web.HttpUtility]::HtmlDecode($Name)
-  $decoded = $decoded -replace '\bandamp;', '&'
-  $decoded = [System.Web.HttpUtility]::HtmlDecode($decoded)
+  $decoded = $Name
+  for ($i = 0; $i -lt 3; $i++) {
+    $decoded = $decoded -replace 'and(?=(?:amp|apos|quot|lt|gt|#\d+);)', '&'
+    $decoded = [System.Web.HttpUtility]::HtmlDecode($decoded)
+  }
+  return ($decoded -replace '\s+', ' ').Trim()
+}
+
+function Get-RunbookCompanyName {
+  param([string]$Name)
+  $decoded = Get-RunbookDecodedName $Name
+  if ([string]::IsNullOrWhiteSpace($decoded)) { return $decoded }
+
+  $decoded = $decoded -replace '\s+-\s+\d{4}-\d{2}-\d{2}\s+\d{1,2}[_:.-]\d{2}(?:[_:.-]\d{2})?\s*$', ''
+  $decoded = $decoded -replace '\s+\d{4}-\d{2}-\d{2}\s+\d{1,2}[_:.-]\d{2}(?:[_:.-]\d{2})?\s*$', ''
   return ($decoded -replace '\s+', ' ').Trim()
 }
 
@@ -95,6 +107,52 @@ function Get-RunbookFinalArticleName {
   $decoded = Get-RunbookDecodedName $Name
   if ([string]::IsNullOrWhiteSpace($decoded)) { return $decoded }
   return ($decoded -replace '^(?i)Articles\s+', '').Trim()
+}
+
+function Get-HuduFileUrl {
+  param(
+    $StoredFile,
+    [string]$BaseUrl
+  )
+
+  if ($null -eq $StoredFile) { return $null }
+
+  $file = $StoredFile
+  for ($i = 0; $i -lt 4; $i++) {
+    $nested = $null
+    foreach ($prop in @('public_photo', 'upload', 'file')) {
+      if ($file.PSObject.Properties.Name -contains $prop -and $null -ne $file.$prop) {
+        $nested = $file.$prop
+        break
+      }
+    }
+    if ($null -eq $nested -or [object]::ReferenceEquals($nested, $file)) { break }
+    $file = $nested
+  }
+
+  $url = $null
+  foreach ($prop in @('url', 'public_url', 'file_url', 'cdn_url', 'download_url')) {
+    if ($file.PSObject.Properties.Name -contains $prop -and -not [string]::IsNullOrWhiteSpace([string]$file.$prop)) {
+      $url = [string]$file.$prop
+      break
+    }
+  }
+  if ([string]::IsNullOrWhiteSpace($url)) { return $null }
+
+  $url = [System.Web.HttpUtility]::HtmlDecode($url).Trim()
+  if ($url.StartsWith('/')) { return $url }
+  if ($url -match '^(?i)//') { $url = "https:$url" }
+  if ($url -match '^(?i)https?:') {
+    try {
+      $uri = [Uri]$url
+      if (-not [string]::IsNullOrWhiteSpace($BaseUrl)) {
+        $baseUri = [Uri]$BaseUrl
+        if ($uri.Host -ieq $baseUri.Host) { return $uri.PathAndQuery }
+      }
+      if ($uri.AbsolutePath -match '^/(?:public_photo|public_photos)/') { return $uri.PathAndQuery }
+    } catch {}
+  }
+  return $url
 }
 
 function New-RunbookImageFileLookup {
@@ -203,7 +261,8 @@ function New-RunbookArticlePublicPhotoMap {
     [string]$Html,
     [Parameter(Mandatory)]$ImageLookup,
     [Parameter(Mandatory)]$Article,
-    [object[]]$ExistingPublicPhotos
+    [object[]]$ExistingPublicPhotos,
+    [string]$HuduBaseUrl
   )
 
   $huduImages = @()
@@ -224,7 +283,8 @@ function New-RunbookArticlePublicPhotoMap {
       $publicPhoto = $publicPhoto.public_photo ?? $publicPhoto
     }
 
-    if (-not ($publicPhoto.url ?? $publicPhoto.public_url ?? $publicPhoto.file_url ?? $publicPhoto.cdn_url)) {
+    $publicPhotoUrl = Get-HuduFileUrl -StoredFile $publicPhoto -BaseUrl $HuduBaseUrl
+    if (-not $publicPhotoUrl) {
       Write-Warning "Public photo upload for $imageFile did not return a usable URL."
       continue
     }
@@ -232,6 +292,7 @@ function New-RunbookArticlePublicPhotoMap {
     $huduImages += @{
       OriginalFilename = $imageFile
       UsingImage       = $publicPhoto
+      Url              = $publicPhotoUrl
     }
   }
 
@@ -264,7 +325,8 @@ function New-RunbookArticleUploadMap {
     [string]$Html,
     [Parameter(Mandatory)]$ImageLookup,
     [Parameter(Mandatory)]$Article,
-    [object[]]$ExistingUploads
+    [object[]]$ExistingUploads,
+    [string]$HuduBaseUrl
   )
 
   $huduImages = @()
@@ -285,7 +347,8 @@ function New-RunbookArticleUploadMap {
       $upload = $upload.upload ?? $upload
     }
 
-    if (-not ($upload.url ?? $upload.public_url ?? $upload.file_url ?? $upload.cdn_url)) {
+    $uploadUrl = Get-HuduFileUrl -StoredFile $upload -BaseUrl $HuduBaseUrl
+    if (-not $uploadUrl) {
       Write-Warning "Upload for $imageFile did not return a usable URL."
       continue
     }
@@ -293,6 +356,7 @@ function New-RunbookArticleUploadMap {
     $huduImages += @{
       OriginalFilename = $imageFile
       UsingImage       = $upload
+      Url              = $uploadUrl
     }
   }
 
@@ -345,14 +409,15 @@ $allHududocuments = Get-HuduArticles
 
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
-  $companyHint = Get-RunbookDecodedName ([IO.Path]::GetFileName($doc.extractPath.TrimEnd('\')))
+  $companyHint = Get-RunbookCompanyName ([IO.Path]::GetFileName($doc.extractPath.TrimEnd('\')))
 
   # split docs by Header/Footer and other heuristics, then merge back non-article splits into nearest article
   $presplit = Split-FullHtmlIntoArticles -Path $doc.HtmlPath -AsObjects -CompanyHint $companyHint
   $split = Merge-NonArticleSplits -Articles $presplit -company $companyHint
   
   # Assign / Ensure company
-  $doc['CompanyName'] = Get-RunbookDecodedName ($split | Select-Object -ExpandProperty Company -First 1)
+  $doc['CompanyName'] = Get-RunbookCompanyName ($split | Select-Object -ExpandProperty Company -First 1)
+  if ([string]::IsNullOrWhiteSpace($doc['CompanyName'])) { $doc['CompanyName'] = $companyHint }
   $matchedCompany = $internalCompanyForRunbooks ?? $null  
     $matchedCompany = $matchedCompany ?? $($huduCompanies | where-object {$_.name -eq $doc['CompanyName']})
     $matchedCompany = $matchedCompany ?? $($huduCompanies | where-object {
@@ -511,7 +576,7 @@ function Test-RunbookResolvedImageSource {
   if ([string]::IsNullOrWhiteSpace($Source)) { return $false }
 
   $value = [System.Web.HttpUtility]::HtmlDecode($Source).Trim()
-  return [bool]($value -match '^(?i)(https?:|data:)')
+  return [bool]($value -match '^(?i)(https?:|data:|/(?:public_photo|public_photos)/)')
 }
 
 function Test-RunbookResolvedLinkTarget {
@@ -604,6 +669,7 @@ foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
 
   $docArticleMap = New-DocArticleMap -SplitDocs ($doc.SplitDocs ?? @()) -HuduBaseUrl $HuduBaseUrl
+
   for ($i = 0; $i -lt $doc.SplitDocs.Count; $i++) {
     $sd  = $doc.SplitDocs[$i]
 
@@ -611,38 +677,54 @@ foreach ($key in $convertedDocs.Keys) {
       -Html $sd.Article `
       -ImageLookup $doc.ImageFileLookup `
       -Article $sd.HuduArticle `
-      -ExistingPublicPhotos $existingPublicPhotos
+      -ExistingPublicPhotos $existingPublicPhotos `
+      -HuduBaseUrl $HuduBaseUrl
 
     $articleUploads = New-RunbookArticleUploadMap `
       -Html $sd.Article `
       -ImageLookup $doc.ImageFileLookup `
       -Article $sd.HuduArticle `
-      -ExistingUploads $existingArticleUploads
+      -ExistingUploads $existingArticleUploads `
+      -HuduBaseUrl $HuduBaseUrl
 
     $existingPublicPhotos += @($articlePublicPhotos | ForEach-Object { $_.UsingImage } | Where-Object { $_ })
     $existingArticleUploads += @($articleUploads | ForEach-Object { $_.UsingImage } | Where-Object { $_ })
 
     $segmentImagesForMap = @($articlePublicPhotos) + @($articleUploads) | Where-Object { $_ }
     $doc['HuduImages'] = @($doc.HuduImages) + @($segmentImagesForMap) | Where-Object { $_ }
-    $docImageMap = if ($segmentImagesForMap.Count -gt 0) {
-      New-DocImageMap -HuduImages $segmentImagesForMap
-    } else {
-      New-Object 'System.Collections.Generic.Dictionary[string,string]' ([System.StringComparer]::OrdinalIgnoreCase)
-    }
+  }
+
+  $docImageMap = if (@($doc.HuduImages).Count -gt 0) {
+    New-DocImageMap -HuduImages @($doc.HuduImages) -BaseUrl $HuduBaseUrl
+  } else {
+    New-Object 'System.Collections.Generic.Dictionary[string,string]' ([System.StringComparer]::OrdinalIgnoreCase)
+  }
+
+  $rewrittenArticles = @()
+  for ($i = 0; $i -lt $doc.SplitDocs.Count; $i++) {
+    $sd  = $doc.SplitDocs[$i]
     $ctx = @{ ImageMap = $docImageMap; ArticleMap = $docArticleMap }
 
     $r = Rewrite-DocLinks -Html $sd.Article -ImageResolver $ImageResolver -LinkResolver $LinkResolver -Context $ctx
-$r.Unresolved | Select-Object -First 5 | Format-Table -AutoSize
-
-"{0}: HuduImages={1}  SplitDocs={2}" -f $key, ($doc.HuduImages.Count), ($doc.SplitDocs.Count) | Write-Host
-"{0}: ImageMap keys={1}  ArticleMap keys={2}" -f $key, ($docImageMap.Count), ($docArticleMap.Count) | Write-Host
     $blockingRewriteIssues = @(Get-RunbookBlockingRewriteIssues -RewriteResult $r)
     if ($blockingRewriteIssues.Count -gt 0) {
-      Write-Warning "Article '$($sd.Title)' ($($sd.HuduArticle.Id)) has $($blockingRewriteIssues.Count) unresolved link/image target(s) after local rewrite; committing once after all rewrite attempts."
+      Write-Warning "Article '$($sd.Title)' ($($sd.HuduArticle.Id)) has $($blockingRewriteIssues.Count) unresolved link/image target(s) after local rewrite; updating anyway so resolved images and links are preserved."
       $blockingRewriteIssues | Select-Object -First 5 | Format-Table -AutoSize
     }
 
-    Set-HuduArticle -Id $sd.HuduArticle.Id -CompanyId $sd.HuduArticle.company_id -Name $sd.FinalName -Content $r.Html
+    $rewrittenArticles += [pscustomobject]@{
+      SplitDoc = $sd
+      Rewrite = $r
+      Issues = $blockingRewriteIssues
+    }
+  }
+
+  "{0}: HuduImages={1}  SplitDocs={2}" -f $key, (@($doc.HuduImages).Count), (@($doc.SplitDocs).Count) | Write-Host
+  "{0}: ImageMap keys={1}  ArticleMap keys={2}" -f $key, ($docImageMap.Count), ($docArticleMap.Count) | Write-Host
+
+  foreach ($item in $rewrittenArticles) {
+    $sd = $item.SplitDoc
+    Set-HuduArticle -Id $sd.HuduArticle.Id -CompanyId $sd.HuduArticle.company_id -Name $sd.FinalName -Content $item.Rewrite.Html
   }
 }
 
