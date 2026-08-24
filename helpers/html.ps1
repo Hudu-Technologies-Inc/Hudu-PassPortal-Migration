@@ -288,15 +288,46 @@ function Get-ReplacementUrl {
 
 # Build maps for a single $doc
 function New-DocImageMap {
-  param([Parameter(Mandatory)][object[]]$HuduImages)
+  param(
+    [Parameter(Mandatory)][object[]]$HuduImages,
+    [string]$BaseUrl
+  )
 
   # Case-insensitive dictionary
   $map = New-Object 'System.Collections.Generic.Dictionary[string,string]' ([System.StringComparer]::OrdinalIgnoreCase)
 
   foreach ($h in $HuduImages) {
     $origFull = [string]$h.OriginalFilename
-    $url      = $h.UsingImage.url ?? $h.UsingImage.public_url ?? $h.UsingImage.file_url ?? $h.UsingImage.cdn_url
+    $usingImage = $h.UsingImage
+    for ($i = 0; $i -lt 4; $i++) {
+      if ($null -eq $usingImage) { break }
+      $nested = $null
+      foreach ($prop in @('public_photo', 'upload', 'file')) {
+        if ($usingImage.PSObject.Properties.Name -contains $prop -and $null -ne $usingImage.$prop) {
+          $nested = $usingImage.$prop
+          break
+        }
+      }
+      if ($null -eq $nested -or [object]::ReferenceEquals($nested, $usingImage)) { break }
+      $usingImage = $nested
+    }
+
+    $url      = $h.Url ?? $usingImage.url ?? $usingImage.public_url ?? $usingImage.file_url ?? $usingImage.cdn_url
     if (-not $origFull -or -not $url) { continue }
+
+    $url = [System.Web.HttpUtility]::HtmlDecode([string]$url).Trim()
+    if ($url -match '^(?i)//') { $url = "https:$url" }
+    if ($url -match '^(?i)https?:') {
+      try {
+        $uri = [Uri]$url
+        if (-not [string]::IsNullOrWhiteSpace($BaseUrl)) {
+          $baseUri = [Uri]$BaseUrl
+          if ($uri.Host -ieq $baseUri.Host) { $url = $uri.PathAndQuery }
+        } elseif ($uri.AbsolutePath -match '^/(?:public_photo|public_photos)/') {
+          $url = $uri.PathAndQuery
+        }
+      } catch {}
+    }
 
     # primary keys
     $leaf     = Split-Path -Leaf $origFull
