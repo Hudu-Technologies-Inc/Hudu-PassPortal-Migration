@@ -249,13 +249,18 @@ foreach ($PPcompany in $PassportalData.Clients) {
 
     # Set, Match, Create, or Skip company
     $MatchedCompany=$(if ($true -eq $alwaysCreateCompanies) {@{Id= 0; Name="Create New"}} else {$null})
-    $matchedCompany = $MatchedCompany ?? $(Get-HuduCompanyFromName -CompanyName $PPcompany.decodedName -HuduCompanies $huducompanies -deepCompanySearch $true) ?? $((Select-ObjectFromList -objects $runSummary.JobInfo.AttriutionOptions -message "Which Company would you like to attribute PassPortal Company $($PPcompany.id)- $($PPcompany.decodedName) to in Hudu?" -allowNull $false))
+    $matchedCompany = $MatchedCompany ?? $(Get-HuduCompanyFromName -CompanyName $PPcompany.decodedName -HuduCompanies $huducompanies -deepCompanySearch $true)
+    if ($null -eq $MatchedCompany) {
+        Set-PrintAndLog -message "No reasonable Hudu company match found for $($PPcompany.decodedName); creating a new company." -Color DarkCyan
+        $MatchedCompany = @{Id= 0; Name="Create New"; decodedName="Create New"}
+    }
 
     if ($MatchedCompany.id -eq -1) {Set-PrintAndLog -message  "Skipping $($PPcompany.decodedName) per user request." -Color DarkCyan; continue}
     if ($MatchedCompany.id -eq  0) {
         Set-PrintAndLog -message  "Creating new Company, $($PPcompany.decodedName)" -Color DarkCyan
         try {
-            $MatchedCompany = $(New-HuduCompany -Name $PPcompany.decodedName).company
+            $MatchedCompany = $(New-HuduCompany -Name $PPcompany.decodedName)
+            $MatchedCompany = $MatchedCompany.company ?? $MatchedCompany
             $CreatedCompanies += $MatchedCompany
         } catch {
             Write-ErrorObjectsToFile -ErrorObject @{

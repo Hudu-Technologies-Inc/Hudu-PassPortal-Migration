@@ -57,7 +57,7 @@ Set-PrintAndLog -message "using $($selectedLocation.name) / $BaseUri for PassPor
 Set-Content -Path $logFile -Value "Starting Passportal Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue
 Set-HuduModuleInitialized -HuduBaseURL $HuduBaseURL -HuduAPIKey $HuduAPIKey
-$currentVersionResult = $($currentVersionResult ?? $([version]((get-huduappinfo).version))); $MinAllowedVersion = ([version]"2.45.0"); $DisallowedVersions = @([version]("2.37.0")); if ($currentVersionResult -lt $MinAllowedVersion){Write-Host "Sorry, your Hudu version $currentVersionResult is not supported. You'll need to upgrade to $($MinAllowedVersion) in order to continue."; exit 1;}; if ($DisallowedVersions -contains [version]($currentVersionResult)) {write-host "disallowed version $($currentVersionResult); Please upgrade or downgrade if possible first." -ForegroundColor Red; exit 1;};
+$currentVersionResult = $($currentVersionResult ?? $([version]((get-huduappinfo).version))); $MinAllowedVersion = ([version]"2.44.0"); $DisallowedVersions = @([version]("2.37.0")); if ($currentVersionResult -lt $MinAllowedVersion){Write-Host "Sorry, your Hudu version $currentVersionResult is not supported. You'll need to upgrade to $($MinAllowedVersion) in order to continue."; exit 1;}; if ($DisallowedVersions -contains [version]($currentVersionResult)) {write-host "disallowed version $($currentVersionResult); Please upgrade or downgrade if possible first." -ForegroundColor Red; exit 1;};
 try {$migrationRecord = Set-MigrationRecord} catch {}
 Set-PrintAndLog -message "Imported Hudu Module.." -Color DarkBlue
 Set-IncrementedState -newState "Check Source data and get Source Data Options"
@@ -112,8 +112,6 @@ Set-IncrementedState -newState "Calculate and Relay Results"
 
 Set-IncrementedState -newState "Complete"
 
-Set-IncrementedState -newState "Calculate and Relay Results"
-. .\jobs\relay-results.ps1
 
 # Set-IncrementedState -newState "Import and match websites from SSL data"
 Set-IncrementedState -newState "Wrap-Up, and Unsetting $($sensitiveVars.count) sensitive vars"
