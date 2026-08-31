@@ -101,6 +101,8 @@ When exporting runbooks:
 
 After initiating the export, runbooks may take some time to generate.
 
+> ⚠️ **Important**: If prompted by Passportal to export runbooks with passwords, we'd reccomend not doing so, and instead migrating passwords normally (outside of runbooks)
+
 - Download all generated PDFs into a **new directory separate from your CSV exports**
 - If you are migrating runbooks, your environment file will reference **two directories**:
   - One for CSV exports
