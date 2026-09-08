@@ -30,7 +30,8 @@ function Omni-Relate {
         [bool]$includeWebsites=$true,
         [bool]$includeIPAM=$true,
         [bool]$includePasswords=$true,
-        [bool]$dryRun=$false
+        [bool]$dryRun=$false,
+        [int]$garbageCollectEvery=10
     )
 
     function _Normalize-AssetName {
@@ -81,7 +82,7 @@ function Omni-Relate {
         param(
             [string[]]$Texts,
             [string]$Needle,
-            [int]$MinimumLength = 5
+            [int]$MinimumLength = 6
         )
 
         if ([string]::IsNullOrWhiteSpace($Needle)) { return $false }
@@ -108,13 +109,66 @@ function Omni-Relate {
         _Add-UniqueText -List $identifiers -Value $Asset.name
 
         $normalizedAssetName = _Normalize-AssetName $Asset.name
-        if (-not [string]::IsNullOrWhiteSpace($normalizedAssetName) -and "$normalizedAssetName".length -ge 5 -and $normalizedAssetName -ine 'main') {
+        if (-not [string]::IsNullOrWhiteSpace($normalizedAssetName) -and "$normalizedAssetName".length -ge 6 -and $normalizedAssetName -ine 'main') {
             _Add-UniqueText -List $identifiers -Value $normalizedAssetName
         }
 
         foreach ($field in @($Asset.fields | Where-Object { $_.field_type -eq 'Website' })) {
             _Add-UniqueText -List $identifiers -Value $field.value
             _Add-UniqueText -List $identifiers -Value (_Normalize-WebsiteURL $field.value)
+        }
+
+        return @($identifiers)
+    }
+
+    function _Get-RelationTargetIdentifiers {
+        param(
+            [string]$Type,
+            $Item,
+            [object[]]$PasswordFolders
+        )
+
+        if ($Type -eq 'Asset') {
+            return @(_Get-AssetIdentifiers -Asset $Item)
+        }
+
+        $identifiers = [System.Collections.Generic.List[string]]::new()
+        _Add-UniqueText -List $identifiers -Value $Item.name
+
+        switch ($Type) {
+            'Website' {
+                _Add-UniqueText -List $identifiers -Value (_Normalize-WebsiteURL $Item.name)
+                if ($Item.PSObject.Properties['url']) {
+                    _Add-UniqueText -List $identifiers -Value $Item.url
+                    _Add-UniqueText -List $identifiers -Value (_Normalize-WebsiteURL $Item.url)
+                }
+            }
+            'Procedure' {
+                foreach ($task in @($Item.procedure_tasks_attributes)) {
+                    if ($task -is [string]) {
+                        _Add-UniqueText -List $identifiers -Value $task
+                    } else {
+                        _Add-UniqueText -List $identifiers -Value $task.name
+                    }
+                }
+            }
+            'AssetPassword' {
+                _Add-UniqueText -List $identifiers -Value (_Get-PasswordFolderName -Password $Item -PasswordFolders $PasswordFolders)
+            }
+            'Network' {
+                foreach ($propertyName in @('network', 'cidr', 'subnet', 'gateway')) {
+                    if ($Item.PSObject.Properties[$propertyName]) {
+                        _Add-UniqueText -List $identifiers -Value ([string]$Item.$propertyName)
+                    }
+                }
+            }
+            'IPAddress' {
+                foreach ($propertyName in @('ip_address', 'address', 'hostname')) {
+                    if ($Item.PSObject.Properties[$propertyName]) {
+                        _Add-UniqueText -List $identifiers -Value ([string]$Item.$propertyName)
+                    }
+                }
+            }
         }
 
         return @($identifiers)
@@ -135,7 +189,7 @@ function Omni-Relate {
             if ($null -eq $asset -or [string]$asset.id -eq [string]$SourceAsset.id) { continue }
 
             $normalizedName = _Normalize-AssetName $asset.name
-            if ([string]::IsNullOrWhiteSpace($normalizedName) -or $normalizedName -ieq 'main' -or "$normalizedName".Length -le 5) {
+            if ([string]::IsNullOrWhiteSpace($normalizedName) -or $normalizedName -ieq 'main' -or "$normalizedName".Length -le 6) {
                 continue
             }
 
@@ -233,59 +287,6 @@ function Omni-Relate {
         return @($texts)
     }
 
-    function _Get-RelationTargetIdentifiers {
-        param(
-            [string]$Type,
-            $Item,
-            [object[]]$PasswordFolders
-        )
-
-        if ($Type -eq 'Asset') {
-            return @(_Get-AssetIdentifiers -Asset $Item)
-        }
-
-        $identifiers = [System.Collections.Generic.List[string]]::new()
-        _Add-UniqueText -List $identifiers -Value $Item.name
-
-        switch ($Type) {
-            'Website' {
-                _Add-UniqueText -List $identifiers -Value (_Normalize-WebsiteURL $Item.name)
-                if ($Item.PSObject.Properties['url']) {
-                    _Add-UniqueText -List $identifiers -Value $Item.url
-                    _Add-UniqueText -List $identifiers -Value (_Normalize-WebsiteURL $Item.url)
-                }
-            }
-            'Procedure' {
-                foreach ($task in @($Item.procedure_tasks_attributes)) {
-                    if ($task -is [string]) {
-                        _Add-UniqueText -List $identifiers -Value $task
-                    } else {
-                        _Add-UniqueText -List $identifiers -Value $task.name
-                    }
-                }
-            }
-            'AssetPassword' {
-                _Add-UniqueText -List $identifiers -Value (_Get-PasswordFolderName -Password $Item -PasswordFolders $PasswordFolders)
-            }
-            'Network' {
-                foreach ($propertyName in @('network', 'cidr', 'subnet', 'gateway')) {
-                    if ($Item.PSObject.Properties[$propertyName]) {
-                        _Add-UniqueText -List $identifiers -Value ([string]$Item.$propertyName)
-                    }
-                }
-            }
-            'IPAddress' {
-                foreach ($propertyName in @('ip_address', 'address', 'hostname')) {
-                    if ($Item.PSObject.Properties[$propertyName]) {
-                        _Add-UniqueText -List $identifiers -Value ([string]$Item.$propertyName)
-                    }
-                }
-            }
-        }
-
-        return @($identifiers)
-    }
-
     function _New-TrackedRelation {
         param(
             [string]$CompanyName,
@@ -302,7 +303,6 @@ function Omni-Relate {
 
         if ($FromType -eq $ToType -and [string]$FromId -eq [string]$ToId) { return }
         if ($FromType -eq "IPAddress" -and $ToType -eq "IPAddress") { return }
-
         $relationKey = "$FromType|$FromId|$ToType|$ToId"
         if ($SeenRelations.ContainsKey($relationKey)) { return }
         $SeenRelations[$relationKey] = $true
@@ -318,41 +318,74 @@ function Omni-Relate {
         }
     }
 
+    function _Get-HuduCompanyItems {
+        param(
+            [Parameter(Mandatory)][string]$CommandName,
+            [Parameter(Mandatory)]$Company,
+            [Parameter(Mandatory)][string]$DisplayName,
+            [hashtable]$GlobalFallbackCache,
+            [switch]$AllowGlobalFallback
+        )
+
+        $command = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
+        if (-not $command) {
+            Write-Warning "$CommandName is not available; skipping $DisplayName for '$($Company.name)'"
+            return @()
+        }
+
+        try {
+            if ($command.Parameters.ContainsKey('CompanyId')) {
+                Write-Host "getting $DisplayName for '$($Company.name)'"
+                return @(& $CommandName -CompanyId $Company.id)
+            }
+
+            if ($AllowGlobalFallback) {
+                if ($null -eq $GlobalFallbackCache) {
+                    Write-Warning "$CommandName does not support -CompanyId and no fallback cache was supplied; skipping $DisplayName for '$($Company.name)'"
+                    return @()
+                }
+
+                if (-not $GlobalFallbackCache.ContainsKey($CommandName)) {
+                    Write-Host "$CommandName does not support -CompanyId; getting all $DisplayName once and filtering per company" -ForegroundColor Yellow
+                    $GlobalFallbackCache[$CommandName] = @(& $CommandName)
+                }
+
+                return @($GlobalFallbackCache[$CommandName] | Where-Object { $_.company_id -eq $Company.id })
+            }
+
+            Write-Warning "$CommandName does not support -CompanyId; skipping $DisplayName for '$($Company.name)'"
+        } catch {
+            Write-Warning "Could not load $DisplayName for '$($Company.name)': $($_.Exception.Message)"
+        }
+
+        return @()
+    }
+
     if (get-command -name Set-HapiErrorsDirectory -ErrorAction SilentlyContinue){try {Set-HapiErrorsDirectory -skipRetry $true} catch {}}
-    write-host "getting companies"; $allcompanies = get-huducompanies;
-    write-host "getting assets"; $allAssets = get-huduassets;
-    if ($includewebsites){write-host "getting websites"; $allWebsites = get-huduwebsites;} else {write-host "skipping websites"; $allWebsites = @();}
-    if ($includeArticles){write-host "getting articles"; $allArticles = get-huduarticles;} else {write-host "skipping articles"; $allArticles = @();}
-    if ($includeProcesses){write-host "getting processes"; $allProcesses = Get-HuduProcedures;} else {write-host "skipping processes"; $allProcesses = @();}
-    if ($includeIPAM){
-        write-host "getting networks"; $allNetworks = Get-HuduNetworks;
-        write-host "getting addresses"; $alladdresses = get-huduipaddresses;
-    } else {write-host "skipping IPAM"; $allNetworks = @(); $alladdresses = @();}
-    if ($includePasswords){
-        write-host "getting passwords"; $allPasswords = get-hudupasswords;
-        write-host "getting password folders"; $allPasswordFolders = get-hudupasswordfolders;
-    } else {write-host "skipping passwords"; $allPasswords = @(); $allPasswordFolders = @();}
+    $globalFallbackCache = @{}
+    $companyCounter = 0
 
+    write-host "getting companies"
+    foreach ($c in $(get-huducompanies)) {
+        $companyCounter++
 
-
-    foreach ($c in $allcompanies) { 
-
-        $companyAssets = $allAssets | Where-Object { $_.company_id -eq $c.id }
-        $companywebsites = $allWebsites | Where-Object { $_.company_id -eq $c.id }
-        $companyArticles = $allArticles | Where-Object { $_.company_id -eq $c.id }
-        $companyProcesses = $allProcesses | Where-Object { $_.company_id -eq $c.id }
-        $companyNetworks = $allNetworks | Where-Object { $_.company_id -eq $c.id }
-        $companyAddresses = $alladdresses | Where-Object { $_.company_id -eq $c.id }
-        $companypasswords = $allPasswords | Where-Object { $_.company_id -eq $c.id }
-        $companypasswordfolders = $allPasswordFolders | Where-Object { $_.company_id -eq $c.id }
+        Write-Host "Loading company '$($c.name)' ($($c.id))" -ForegroundColor Cyan
+        $companyAssets = @(_Get-HuduCompanyItems -CommandName 'Get-HuduAssets' -Company $c -DisplayName 'assets')
+        if ($includewebsites){$companywebsites = @(_Get-HuduCompanyItems -CommandName 'Get-HuduWebsites' -Company $c -DisplayName 'websites' -GlobalFallbackCache $globalFallbackCache -AllowGlobalFallback)} else {write-host "skipping websites"; $companywebsites = @();}
+        if ($includeArticles){$companyArticles = @(_Get-HuduCompanyItems -CommandName 'Get-HuduArticles' -Company $c -DisplayName 'articles')} else {write-host "skipping articles"; $companyArticles = @();}
+        if ($includeProcesses){$companyProcesses = @(_Get-HuduCompanyItems -CommandName 'Get-HuduProcedures' -Company $c -DisplayName 'processes')} else {write-host "skipping processes"; $companyProcesses = @();}
+        if ($includeIPAM){
+            $companyNetworks = @(_Get-HuduCompanyItems -CommandName 'Get-HuduNetworks' -Company $c -DisplayName 'networks')
+            $companyAddresses = @(_Get-HuduCompanyItems -CommandName 'Get-HuduIPAddresses' -Company $c -DisplayName 'addresses')
+        } else {write-host "skipping IPAM"; $companyNetworks = @(); $companyAddresses = @();}
+        if ($includePasswords){
+            $companypasswords = @(_Get-HuduCompanyItems -CommandName 'Get-HuduPasswords' -Company $c -DisplayName 'passwords')
+            $companypasswordfolders = @(_Get-HuduCompanyItems -CommandName 'Get-HuduPasswordFolders' -Company $c -DisplayName 'password folders')
+        } else {write-host "skipping passwords"; $companypasswords = @(); $companypasswordfolders = @();}
 
         foreach ($i in @($companywebsites,$companyArticles,$companyProcesses,$companyNetworks,$companyAddresses,$companyAssets,$companypasswords,$companypasswordfolders) | Where-Object { $_.count -gt 0 }) {
             write-host "Company '$($c.name)' has $($i.count) items of type $($i[0].psobject.typeNames[0])" -ForegroundColor DarkCyan
         }
-
-        $companyProcedureTaskNames = $companyProcesses.procedure_tasks_attributes.name | sort-object -unique
-        $companyProcedureAssignments = $companyProcesses.procedure_tasks_attributes.first_assigned_user_name | sort-object -unique
-
 
         $companyAssetsByName = $companyAssets | Group-Object { _Normalize-AssetName $_.name } -AsHashTable -AsString
         $companySeenRelations = @{}
@@ -372,7 +405,7 @@ function Omni-Relate {
 
 
             # start out with association by name (if not generalized)
-            if ($normalizedAssetName -ieq "main" -or "$normalizedAssetName".length -lt 5) {
+            if ($normalizedAssetName -ieq "main" -or "$normalizedAssetName".length -lt 6) {
                 write-host "Skipping match by name on too-generic of asset '$($a.name)' ($($a.id)) due to short or generic name" -ForegroundColor Yellow
             } else {
             if ($companywebsites) {
@@ -461,7 +494,7 @@ function Omni-Relate {
                 $mentionedArticles += $companyArticles | Where-Object { $_.content -and $_.content.Contains($normalizedAssetName) -or $_.content -icontains $a.name -or $normalizedAssetName -ieq (_Normalize-AssetName $_.name) }
                 $mentionedAssets += _Get-AssetsMentionedInTexts -Assets $companyAssets -SourceAsset $a -Texts @($fieldValue)
             }       
-            $a.fields | Where-Object {$_.field_type -eq "Text"  -or $_.field_type -ieq "Link"  -or $_.field_type -ieq "ConfidentialText"  -or $_.field_type -ieq "Phone"  -or $_.field_type -ieq "Copyable Text"} | ForEach-Object {
+            $a.fields | Where-Object {$_.field_type -eq "Text" -or $_.field_type -ieq "Link" -or $_.field_type -ieq "ConfidentialText" -or $_.field_type -ieq "Phone" -or $_.field_type -ieq "Copyable_Text"} | ForEach-Object {
                 $fieldValue = $_.value
                 foreach ($companyProcess in $companyProcesses){
                     if (
@@ -578,10 +611,29 @@ function Omni-Relate {
                 _New-TrackedRelation -CompanyName $c.name -FromType $source.type -FromId $source.item.id -FromName $sourceName -ToType $target.type -ToId $target.item.id -ToName $target.item.name -RelationLabel $target.label -SeenRelations $companySeenRelations -DryRun:$dryRun
             }
         }
+
+        $companyAssets = $null
+        $companywebsites = $null
+        $companyArticles = $null
+        $companyProcesses = $null
+        $companyNetworks = $null
+        $companyAddresses = $null
+        $companypasswords = $null
+        $companypasswordfolders = $null
+        $companyAssetsByName = $null
+        $companySeenRelations = $null
+        $nonAssetSources = $null
+        $relationTargets = $null
+
+        if ($garbageCollectEvery -gt 0 -and ($companyCounter % $garbageCollectEvery) -eq 0) {
+            [System.GC]::Collect()
+            [System.GC]::WaitForPendingFinalizers()
+        }
     }
     if (get-command -name Set-HapiErrorsDirectory -ErrorAction SilentlyContinue){try {Set-HapiErrorsDirectory -skipRetry $false} catch {}}
 
 }
+
 
 function Get-AssetFieldUniqueValues {
     param([pscustomobject]$assetLayout,[string]$label)
