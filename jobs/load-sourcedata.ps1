@@ -1,8 +1,35 @@
 $loadSourceDataStartedAt = Get-Date
 Set-PrintAndLog -message "Starting source-data load from Passportal..." -Color DarkBlue
 
-$passportalApiDumpPath = $PassportalApiDumpPath ?? (Join-Path $workdir "export.json")
+function Get-SafePassportalApiDumpName {
+    param([AllowNull()][string]$Name)
+
+    if ([string]::IsNullOrWhiteSpace($Name)) { return "unknown-instance" }
+
+    $safeName = [System.Net.WebUtility]::HtmlDecode("$Name").Trim().ToLowerInvariant()
+    $safeName = $safeName -replace '^(?i)https?://', ''
+    $safeName = $safeName -replace '/+$', ''
+    $safeName = $safeName -replace '[\\/:*?"<>|]+', '-'
+    $safeName = $safeName -replace '[^a-z0-9._-]+', '-'
+    $safeName = $safeName -replace '-+', '-'
+    $safeName = $safeName.Trim('-')
+
+    if ([string]::IsNullOrWhiteSpace($safeName)) { return "unknown-instance" }
+    return $safeName
+}
+
+function Get-PassportalApiDumpInstanceName {
+    if (Test-PassportalMeaningfulValue $PassportalApiDumpInstanceName) { return "$PassportalApiDumpInstanceName" }
+    if (Test-PassportalMeaningfulValue $HuduBaseURL) { return "$HuduBaseURL" }
+    if (Test-PassportalMeaningfulValue $SelectedLocation.APIBase) { return "passportal-$($SelectedLocation.APIBase)" }
+    if (Test-PassportalMeaningfulValue $passportalData.BaseURL) { return "$($passportalData.BaseURL)" }
+    return "unknown-instance"
+}
+
+$passportalApiDumpInstanceName = Get-SafePassportalApiDumpName (Get-PassportalApiDumpInstanceName)
+$passportalApiDumpPath = $PassportalApiDumpPath ?? (Join-Path $workdir "export-$passportalApiDumpInstanceName.json")
 $passportalApiDumpMaxAgeHours = $PassportalApiDumpMaxAgeHours ?? 8
+Set-PrintAndLog -message "Passportal API dump path set to '$passportalApiDumpPath'." -Color DarkGray
 
 function Get-PassportalClientsFromApiDump {
     param(

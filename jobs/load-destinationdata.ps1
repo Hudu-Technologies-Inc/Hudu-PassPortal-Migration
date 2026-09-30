@@ -6,9 +6,9 @@ $HuduData = @{
         @{name="websites"; request="Get-HuduWebsites"},
         @{name="assetlayouts"; request="Get-HuduAssetLayouts"},
         @{name="articles"; request="Get-HuduArticles"},
-        @{name="passwords"; request="Get-HuduArticles"},
+        @{name="passwords"; request="Get-HuduPasswords"},
         @{name="folders"; request="Get-HuduArticles"},
-        @{name="passwordfolders"; request="Get-HuduArticles"},
+        @{name="passwordfolders"; request="Get-HuduPasswordFolders"},
         @{name="lists"; request="Get-HuduLists"},
         @{name="procedures"; request="Get-HuduProcedures"}
     )
