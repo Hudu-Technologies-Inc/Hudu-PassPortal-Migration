@@ -344,8 +344,10 @@ foreach ($PPcompany in $PassportalData.Clients) {
         foreach ($obj in $ObjectsForTransfer) {
             $detailById = @{}
             foreach ($detailItem in @($obj.details)) {
-                if ($null -ne $detailItem -and $detailItem.ID) {
-                    $detailById["$($detailItem.ID)"] = $detailItem
+                if ($null -eq $detailItem) { continue }
+                $detailItemId = ConvertTo-PassportalIdString $detailItem.ID
+                if ($detailItemId) {
+                    $detailById[$detailItemId] = $detailItem
                 }
             }
 
@@ -357,7 +359,8 @@ foreach ($PPcompany in $PassportalData.Clients) {
             foreach ($data in $dataForTransfer) {
                 if ($null -eq $data) { continue }
 
-                $detail = $detailById["$($data.id)"]
+                $passportalDocId = ConvertTo-PassportalIdString $data.id
+                $detail = if ($passportalDocId) { $detailById[$passportalDocId] } else { $null }
                 $fields = Get-PassportalDocumentFields -Detail $detail
                 $fieldLookup = New-PassportalFieldLookup -ppFields $fields
 
@@ -367,7 +370,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
                                                       -companyId $MatchedCompany.id `
                                                       -fields $fields `
                                                       -fieldLookup $fieldLookup
-                $customFields = Get-NormalizedPassportalFields -ppFields $fields -fieldMap $fieldMap -passportalId $data.id -fieldLookup $fieldLookup
+                $customFields = Get-NormalizedPassportalFields -ppFields $fields -fieldMap $fieldMap -passportalId $passportalDocId -fieldLookup $fieldLookup
                 if ($customFields -and $customFields.count -gt 0){
                     $newAsset["Fields"]=$customFields
                     Write-Host "$(Get-JsonString $customFields)"
@@ -375,8 +378,8 @@ foreach ($PPcompany in $PassportalData.Clients) {
 
                 $ExistingAsset = $null
                 $existingMatchSource = $null
-                $ppIdKey = "$($data.id)"
-                if ($existingAssetIndexes.ByPassPortalId.ContainsKey($ppIdKey)) {
+                $ppIdKey = $passportalDocId
+                if ($ppIdKey -and $existingAssetIndexes.ByPassPortalId.ContainsKey($ppIdKey)) {
                     $matches = @($existingAssetIndexes.ByPassPortalId[$ppIdKey])
                     if ($matches.Count -eq 1) {
                         $ExistingAsset = $matches[0]
@@ -403,7 +406,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
 
                 if ($null -ne $ExistingAsset) {
                     $newAsset["Id"] = Get-HuduAssetIdForMigration -Asset $ExistingAsset
-                    Set-PrintAndLog -message "Existing asset matched by $existingMatchSource for Passportal doc $($data.id): $($newAsset.Name). Updating." -Color DarkCyan
+                    Set-PrintAndLog -message "Existing asset matched by $existingMatchSource for Passportal doc $($passportalDocId ?? $data.id): $($newAsset.Name). Updating." -Color DarkCyan
                 }
 
                 try {

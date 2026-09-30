@@ -312,6 +312,17 @@ function Test-PassportalMeaningfulValue {
     )
 }
 
+function ConvertTo-PassportalIdString {
+    param(
+        [AllowNull()]$Value
+    )
+
+    if (-not (Test-PassportalMeaningfulValue $Value)) { return $null }
+    $id = "$Value".Trim()
+    if ($id -eq "0") { return $null }
+    return $id
+}
+
 function Resolve-PPValue {
     param(
         $Node,
@@ -670,7 +681,7 @@ function Get-NormalizedPassportalFields {
     param(
         [Parameter(Mandatory)] $ppFields,   # hashtable/psobject: Passportal .Fields bag
         [Parameter(Mandatory)][array]$fieldMap, # Hudu layout fields (with .label)
-        [int]$passportalId,
+        [AllowNull()]$passportalId,
         $fieldLookup
     )
 
@@ -688,7 +699,8 @@ function Get-NormalizedPassportalFields {
         }
     }
 
-    if ($null -ne $passportalId -and $passportalId -gt 0) { $result['PassPortalID'] = "$passportalId" }
+    $passportalIdText = ConvertTo-PassportalIdString $passportalId
+    if ($passportalIdText) { $result['PassPortalID'] = $passportalIdText }
 
     return $result
 }
