@@ -8,6 +8,7 @@ $PassportalDocsConvert = $true
 $PassportalSkipDocTypes = @() # @("asset","ssl") Optional: skip migrating specific Passportal doctypes- leave as empty array if you dont want to skip anything
 $SelectedLocation = @{APIBase="us-clover"; name="United States"}
 $AssociatePassowrdsAssets = $false # if this is turned on, you may have to match many passwords to their respective assets in hudu. 
+$PassportalPasswordFolderScope = "Global" # Global, Company, or None. Global creates/reuses password folders without a company id so they can be reused across companies.
 $csvPath = "" your absolute path to csv export files
 . .\Passportal-Migration.ps1
 

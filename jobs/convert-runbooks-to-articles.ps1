@@ -722,9 +722,20 @@ foreach ($key in $convertedDocs.Keys) {
   "{0}: HuduImages={1}  SplitDocs={2}" -f $key, (@($doc.HuduImages).Count), (@($doc.SplitDocs).Count) | Write-Host
   "{0}: ImageMap keys={1}  ArticleMap keys={2}" -f $key, ($docImageMap.Count), ($docArticleMap.Count) | Write-Host
 
+  $articleUpdateIdx = 0
   foreach ($item in $rewrittenArticles) {
+    $articleUpdateIdx++
     $sd = $item.SplitDoc
-    Set-HuduArticle -Id $sd.HuduArticle.Id -CompanyId $sd.HuduArticle.company_id -Name $sd.FinalName -Content $item.Rewrite.Html
+    Set-PrintAndLog -message "Updating runbook article $articleUpdateIdx / $($rewrittenArticles.Count) for $key`: $($sd.FinalName) ($($sd.HuduArticle.Id))" -Color DarkCyan
+    try {
+      Set-HuduArticle -Id $sd.HuduArticle.Id -CompanyId $sd.HuduArticle.company_id -Name $sd.FinalName -Content $item.Rewrite.Html
+      Set-PrintAndLog -message "Updated runbook article $articleUpdateIdx / $($rewrittenArticles.Count) for $key`: $($sd.FinalName) ($($sd.HuduArticle.Id))" -Color DarkGray
+    } catch {
+      Write-ErrorObjectsToFile -ErrorObject @{
+        Error = $_
+        During = "updating runbook article $($sd.FinalName) ($($sd.HuduArticle.Id)) for $key"
+      } -Name "RunbookArticleUpdate-$key-$($sd.FinalName)"
+    }
   }
 }
 

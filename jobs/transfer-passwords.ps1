@@ -101,6 +101,169 @@ function Get-MatchedHuduCompanyForPassportalPassword {
     return $null
 }
 
+function Get-PassportalPasswordFolderName {
+    param([AllowNull()]$Credential)
+
+    if ($null -eq $Credential) { return $null }
+
+    foreach ($propertyName in @('Folder(Optional)', 'Folder (Optional)', 'Folder', 'Folder Name', 'folder', 'folderName', 'passwordFolder', 'Password Folder')) {
+        $value = Get-PPPropertyValue -Object $Credential -Name $propertyName
+        if (Test-PassportalMeaningfulValue $value) {
+            $folderName = "$(Get-HTTPDecodedString $value)"
+            $folderName = ($folderName -replace "\r\n?", "`n").Trim()
+            $folderName = ($folderName -replace '\s+', ' ').Trim(' ', '/', '\')
+            if (Test-PassportalMeaningfulValue $folderName) { return $folderName }
+        }
+    }
+
+    return $null
+}
+
+function Get-PassportalPasswordFolderKey {
+    param([AllowNull()][string]$FolderName)
+
+    if (-not (Test-PassportalMeaningfulValue $FolderName)) { return $null }
+    return (($FolderName -replace '\s+', ' ').Trim()).ToLowerInvariant()
+}
+
+$script:PassportalPasswordFolderIndexes = @{}
+$script:PassportalPasswordFolderIndexLoadFailures = @{}
+$PassportalPasswordFolderScope = $PassportalPasswordFolderScope ?? 'Global'
+
+function Get-PassportalPasswordFolderScope {
+    $scope = "$PassportalPasswordFolderScope".Trim()
+    if ($scope -in @('Global', 'Company', 'None')) { return $scope }
+
+    Set-PrintAndLog -message "Unknown PassportalPasswordFolderScope '$PassportalPasswordFolderScope'; defaulting to Global." -Color DarkYellow
+    return 'Global'
+}
+
+function Test-HuduPasswordFolderIsGlobal {
+    param([AllowNull()]$Folder)
+
+    if ($null -eq $Folder) { return $false }
+    $hasCompanyId = (Test-PPProperty -Object $Folder -Name 'company_id') -or (Test-PPProperty -Object $Folder -Name 'companyId')
+    $hasCompany = Test-PPProperty -Object $Folder -Name 'company'
+    $companyId = (Get-PPPropertyValue -Object $Folder -Name 'company_id') ?? (Get-PPPropertyValue -Object $Folder -Name 'companyId')
+    $company = Get-PPPropertyValue -Object $Folder -Name 'company'
+    if ($hasCompanyId) { return (-not (Test-PassportalMeaningfulValue $companyId)) }
+    if ($hasCompany) { return $null -eq $company }
+    return $false
+}
+
+function Get-HuduPasswordFolderIndex {
+    param(
+        [Parameter(Mandatory)][string]$IndexKey,
+        [AllowNull()][int]$CompanyId,
+        [bool]$Global
+    )
+
+    if ($script:PassportalPasswordFolderIndexes.ContainsKey($IndexKey)) {
+        return $script:PassportalPasswordFolderIndexes[$IndexKey]
+    }
+
+    $index = @{}
+    if (Get-Command -Name Get-HuduPasswordFolders -ErrorAction SilentlyContinue) {
+        $folders = @()
+        try {
+            $folders = if ($Global) {
+                @(Get-HuduPasswordFolders)
+            } else {
+                @(Get-HuduPasswordFolders -CompanyId $CompanyId)
+            }
+        } catch {
+            $script:PassportalPasswordFolderIndexLoadFailures[$IndexKey] = $true
+            Write-ErrorObjectsToFile -ErrorObject @{
+                Error = $_
+                During = if ($Global) { "loading global password folders" } else { "loading password folders for company $CompanyId" }
+            } -Name "PasswordFolderLoad-$IndexKey"
+        }
+
+        foreach ($folderItem in $folders) {
+            $folder = $folderItem.password_folder ?? $folderItem
+            if ($Global -and -not (Test-HuduPasswordFolderIsGlobal -Folder $folder)) { continue }
+
+            $folderName = $folder.name ?? $folder.Name
+            $folderKey = Get-PassportalPasswordFolderKey $folderName
+            if ($folderKey -and -not $index.ContainsKey($folderKey)) {
+                $index[$folderKey] = $folder
+            }
+        }
+    } else {
+        $script:PassportalPasswordFolderIndexLoadFailures[$IndexKey] = $true
+    }
+
+    $script:PassportalPasswordFolderIndexes[$IndexKey] = $index
+    return $index
+}
+
+function Get-HuduPasswordFolderIndexForCompany {
+    param(
+        [Parameter(Mandatory)]$Company
+    )
+
+    $companyId = [int]($Company.id ?? $Company.Id)
+    if ($companyId -lt 1) { return @{} }
+    return Get-HuduPasswordFolderIndex -IndexKey "company:$companyId" -CompanyId $companyId -Global:$false
+}
+
+function Get-HuduPasswordFolderForPassportalPassword {
+    param(
+        [AllowNull()]$Credential,
+        [Parameter(Mandatory)]$Company
+    )
+
+    $folderName = Get-PassportalPasswordFolderName -Credential $Credential
+    if (-not (Test-PassportalMeaningfulValue $folderName)) { return $null }
+
+    $scope = Get-PassportalPasswordFolderScope
+    if ($scope -eq 'None') { return $null }
+
+    if (-not (Get-Command -Name Get-HuduPasswordFolders -ErrorAction SilentlyContinue) -or
+        -not (Get-Command -Name New-HuduPasswordFolder -ErrorAction SilentlyContinue)) {
+        Set-PrintAndLog -message "Passportal password folder '$folderName' found, but Hudu password-folder commands are not available. Creating password without folder." -Color DarkYellow
+        return $null
+    }
+
+    $companyId = [int]($Company.id ?? $Company.Id)
+    $globalScope = $scope -eq 'Global'
+    $indexKey = if ($globalScope) { 'global' } else { "company:$companyId" }
+    $folderDescription = if ($globalScope) { 'global password folders' } else { "password folders for $($Company.name ?? $companyId)" }
+    $folderKey = Get-PassportalPasswordFolderKey $folderName
+    $folderIndex = if ($globalScope) {
+        Get-HuduPasswordFolderIndex -IndexKey $indexKey -Global:$true
+    } else {
+        Get-HuduPasswordFolderIndexForCompany -Company $Company
+    }
+    if ($script:PassportalPasswordFolderIndexLoadFailures.ContainsKey($indexKey)) {
+        Set-PrintAndLog -message "Could not verify existing $folderDescription. Creating password without folder '$folderName' to avoid duplicates." -Color DarkYellow
+        return $null
+    }
+    if ($folderIndex.ContainsKey($folderKey)) { return $folderIndex[$folderKey] }
+
+    try {
+        Set-PrintAndLog -message "Creating $(if ($globalScope) { 'global ' } else { '' })password folder '$folderName'$(if ($globalScope) { '' } else { " for $($Company.name ?? $companyId)" })." -Color DarkCyan
+        $newFolder = if ($globalScope) {
+            New-HuduPasswordFolder -Name $folderName
+        } else {
+            New-HuduPasswordFolder -Name $folderName -CompanyId $companyId
+        }
+        $newFolder = $newFolder.password_folder ?? $newFolder
+        if ($null -ne $newFolder -and ($newFolder.id ?? $newFolder.Id)) {
+            $folderIndex[$folderKey] = $newFolder
+            return $newFolder
+        }
+    } catch {
+        Write-ErrorObjectsToFile -ErrorObject @{
+            Error = $_
+            During = "creating $(if ($globalScope) { 'global ' } else { '' })password folder '$folderName'$(if ($globalScope) { '' } else { " for $($Company.name ?? $companyId)" })"
+        } -Name "PasswordFolderCreate-$($Company.Name)-$folderName"
+    }
+
+    Set-PrintAndLog -message "Could not create $(if ($globalScope) { 'global ' } else { '' })password folder '$folderName'$(if ($globalScope) { '' } else { " for $($Company.name ?? $companyId)" }). Creating password without folder." -Color DarkYellow
+    return $null
+}
+
 $huducompanies = Get-HuduCompanies
 $internalCompany = select-objectfromlist -objects $(get-huducompanies) -message "Please select your internal company in Hudu for passwords that may not be directly associated with a company in Passportal"; $internalCompany = $internalCompany.company ?? $internalCompany;
 $AssociatePassowrdsAssets = $AssociatePassowrdsAssets ?? $false
@@ -143,6 +306,11 @@ foreach ($newCredential in $passwordsToProcess) {
         CompanyId               = $MatchedCompany.Id
         Name                    = $credentialName
         Password                = "$($newCredential.Password)"
+    }
+    $matchedPasswordFolder = Get-HuduPasswordFolderForPassportalPassword -Credential $newCredential -Company $MatchedCompany
+    if ($null -ne $matchedPasswordFolder -and ($matchedPasswordFolder.id ?? $matchedPasswordFolder.Id)) {
+        $NewPassSplat["PasswordFolderId"] = [int]($matchedPasswordFolder.id ?? $matchedPasswordFolder.Id)
+        Write-Host "Matched Credential $($newCredential) to password folder $($matchedPasswordFolder.name)"
     }
     if ($null -ne $matchedAsset){
         Write-Host "Matched Credential $($newCredential) to asset $($matchedAsset.HuduAsset.name)"
@@ -195,6 +363,7 @@ foreach ($newCredential in $passwordsToProcess) {
                 SourcePassword      = $newCredential
                 MatchedCompany      = $MatchedCompany
                 MatchedAsset        = $MatchedAsset
+                MatchedPasswordFolder = $matchedPasswordFolder
             }
         }
     } catch {
