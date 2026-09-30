@@ -307,6 +307,8 @@ function Test-PassportalMeaningfulValue {
         "N/A",
         "NA",
         "Not Applicable",
+        "Not Available",
+        "Unavailable",
         "NULL",
         "null"
     )
@@ -588,6 +590,68 @@ function Find-PassportalFieldValueInLookup {
     return $entry.Value
 }
 
+function Get-CoercedDate {
+    param(
+        [Parameter(Mandatory)]
+        [AllowNull()]
+        [object]$InputDate,
+
+        [datetime]$Cutoff = [datetime]'1000-01-01',
+
+        [ValidateSet('DD.MM.YYYY','YYYY.MM.DD','MM/DD/YYYY')]
+        [string]$OutputFormat = 'MM/DD/YYYY'
+    )
+
+    $invariantCulture = [System.Globalization.CultureInfo]::InvariantCulture
+
+    if ($null -eq $InputDate) { return $null }
+    if ($InputDate -is [datetime]) {
+        $date = [datetime]$InputDate
+    } else {
+        $text = "$InputDate".Trim()
+        if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+
+        $formats = @(
+            'MM/dd/yyyy HH:mm:ss',
+            'MM/dd/yyyy hh:mm:ss tt',
+            'MM/dd/yyyy',
+            'M/d/yyyy',
+            'yyyy-MM-dd',
+            'yyyy-M-d',
+            'yyyy.MM.dd',
+            'yyyy.M.d',
+            'dd.MM.yyyy',
+            'd.M.yyyy',
+            'yyyy/MM/dd',
+            'yyyy/M/d',
+            'yyyy-MM-ddTHH:mm:ss',
+            'yyyy-MM-ddTHH:mm:ssK',
+            'yyyy-MM-ddTHH:mm:ss.fffK'
+        )
+
+        $date = [datetime]::MinValue
+        $ok = $false
+        foreach ($format in $formats) {
+            if ([datetime]::TryParseExact($text, $format, $invariantCulture, [System.Globalization.DateTimeStyles]::AssumeLocal, [ref]$date)) {
+                $ok = $true
+                break
+            }
+        }
+
+        if (-not $ok -and -not [datetime]::TryParse($text, $invariantCulture, [System.Globalization.DateTimeStyles]::AssumeLocal, [ref]$date)) {
+            return $null
+        }
+    }
+
+    if ($date -lt $Cutoff) { return $null }
+
+    switch ($OutputFormat) {
+        'DD.MM.YYYY' { return $date.ToString('dd.MM.yyyy', $invariantCulture) }
+        'YYYY.MM.DD' { return $date.ToString('yyyy.MM.dd', $invariantCulture) }
+        'MM/DD/YYYY' { return $date.ToString('MM/dd/yyyy', $invariantCulture) }
+    }
+}
+
 function ConvertTo-HuduAssetFieldValue {
     param(
         [AllowNull()]$Value,
@@ -602,14 +666,7 @@ function ConvertTo-HuduAssetFieldValue {
     if ($FieldLabel -and (ConvertTo-PassportalLookupKey $s) -eq (ConvertTo-PassportalLookupKey $FieldLabel)) { return $null }
 
     if ($FieldType -ieq "Date") {
-        if ($s -match '^\s*(\d{4})[-/](\d{1,2})[-/](\d{1,2})\s*$') {
-            return ("{0:0000}-{1:00}-{2:00}" -f [int]$Matches[1], [int]$Matches[2], [int]$Matches[3])
-        }
-
-        $parsed = [datetime]::MinValue
-        if ([datetime]::TryParse($s, [Globalization.CultureInfo]::GetCultureInfo("en-US"), [Globalization.DateTimeStyles]::AssumeLocal, [ref]$parsed)) {
-            return $parsed.ToString("yyyy-MM-dd")
-        }
+        return Get-CoercedDate -InputDate $resolved -OutputFormat 'MM/DD/YYYY'
     }
 
     return $s

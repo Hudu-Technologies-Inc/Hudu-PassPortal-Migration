@@ -1,4 +1,4 @@
-$TransferIDX=0
+$TransferIDX = 0
 $TransferredTotal = $passportalData.Clients.count
 $huducompanies = Get-HuduCompanies
 $script:huduAssetCache = @{}
@@ -243,9 +243,11 @@ function Get-HuduAssetMigrationIndexes {
 }
 
 foreach ($PPcompany in $PassportalData.Clients) {
-    $TransferIDX = $SourceDataIDX+1
+    $TransferIDX++
     $completionPercentage = Get-PercentDone -current $TransferIDX -Total $TransferredTotal
-    Write-Progress -Activity "Transferring items for $($PPcompany.decodedName)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
+    Write-Progress -Activity "Transferring items for $($PPcompany.decodedName)" -Status "$TransferIDX / $TransferredTotal ($completionPercentage%)" -PercentComplete $completionPercentage
+    $companyEligibleAssetCount = 0
+    $companyCreatedAssetStartCount = $CreatedAssets.Count
 
     # Set, Match, Create, or Skip company
     $MatchedCompany=$(if ($true -eq $alwaysCreateCompanies) {@{Id= 0; Name="Create New"}} else {$null})
@@ -308,7 +310,8 @@ foreach ($PPcompany in $PassportalData.Clients) {
             }
         }
 
-        write-host "$transferDataCount objects found for $doctype doctype for $($PPcompany.decodedName)."
+        Set-PrintAndLog -message "$transferDataCount objects found for $doctype doctype for $($PPcompany.decodedName)." -Color DarkGray
+        $companyEligibleAssetCount += $transferDataCount
         if ($ObjectsForTransfer.Count -lt 1) { continue }
         if ($transferDataCount -lt 1) { continue }
 
@@ -434,4 +437,10 @@ foreach ($PPcompany in $PassportalData.Clients) {
             }
         }
     }
+
+    $companyCreatedAssetCount = $CreatedAssets.Count - $companyCreatedAssetStartCount
+    Set-PrintAndLog -message "Asset transfer summary for $($PPcompany.decodedName): $companyCreatedAssetCount created/updated from $companyEligibleAssetCount eligible source row(s)." -Color DarkCyan
 }
+
+Write-Progress -Activity "Transferring items from Passportal" -Completed
+Set-PrintAndLog -message "Asset transfer complete: $($CreatedAssets.Count) created/updated asset operation(s) across $TransferredTotal Passportal client(s)." -Color DarkCyan
