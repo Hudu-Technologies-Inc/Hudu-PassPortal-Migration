@@ -322,8 +322,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
         if (-not $matchedLayout) {
             Set-PrintAndLog -message  "Creating new layout for $layoutName with fields $($($fieldMap | convertto-json -depth 66).ToString())" -Color DarkCyan
             try {
-                $layoutDefault = $PassportalLayoutDefaults[$docType] ?? $PassportalLayoutDefaults.custom ?? @{ icon = "fas fa-puzzle-piece"; label = "Custom Docs" }
-                $newLayout = New-HuduAssetLayout -name $layoutName -icon $layoutDefault.icon -color "#300797ff" -icon_color "#bed6a9ff" `
+                $newLayout = New-HuduAssetLayout -name $layoutName -icon "$(Find-FontAwesomeIcon -search $layoutName)" -color "#6136ff" -icon_color "#ffffff" `
                     -include_passwords $true -include_photos $true -include_comments $true -include_files $true `
                     -fields $fieldMap
             } catch {
